@@ -1,0 +1,132 @@
+import { describe, it, expect } from 'vitest'
+import { dot, matmul, transpose } from './tensor.js'
+import { softmax, softmaxWithTemperature } from './softmax.js'
+import { attention } from './attention.js'
+import { route } from './moe.js'
+import { tokenize } from './tokenizer.js'
+import { seededMatrix } from './synth.js'
+import { colorFor, matrixWH, matmulLayout } from './figure.js'
+
+describe('tensor', () => {
+  it('dot product', () => {
+    expect(dot([1, 2, 3], [4, 5, 6])).toBe(32)
+  })
+  it('matmul', () => {
+    const A = [[1, 2], [3, 4]]
+    const B = [[5, 6], [7, 8]]
+    expect(matmul(A, B)).toEqual([[19, 22], [43, 50]])
+  })
+  it('transpose', () => {
+    expect(transpose([[1, 2, 3], [4, 5, 6]])).toEqual([[1, 4], [2, 5], [3, 6]])
+  })
+})
+
+describe('softmax', () => {
+  it('sums to 1', () => {
+    const p = softmax([1, 2, 3])
+    expect(p.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10)
+  })
+  it('is monotonic with input', () => {
+    const p = softmax([1, 2, 3])
+    expect(p[2]).toBeGreaterThan(p[1])
+    expect(p[1]).toBeGreaterThan(p[0])
+  })
+  it('higher temperature flattens distribution', () => {
+    const sharp = softmaxWithTemperature([1, 2, 3], 0.5)
+    const flat = softmaxWithTemperature([1, 2, 3], 5)
+    // 平的分布:最大值更小,最小值更大
+    expect(Math.max(...flat)).toBeLessThan(Math.max(...sharp))
+  })
+})
+
+describe('attention', () => {
+  it('weights each row sums to 1', () => {
+    const Q = [[1, 0], [0, 1], [1, 1]]
+    const K = [[1, 0], [0, 1], [1, 1]]
+    const V = [[1, 0], [0, 1], [1, 1]]
+    const { weights, output } = attention(Q, K, V, true)
+    for (const row of weights) {
+      expect(row.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10)
+    }
+    expect(output.length).toBe(3)
+  })
+  it('causal mask: first token only attends to itself', () => {
+    const Q = [[1, 2], [3, 4], [5, 6]]
+    const K = [[1, 2], [3, 4], [5, 6]]
+    const V = [[1, 1], [2, 2], [3, 3]]
+    const { weights } = attention(Q, K, V, true)
+    expect(weights[0][0]).toBeCloseTo(1, 10)
+    expect(weights[0][1]).toBeCloseTo(0, 10)
+    expect(weights[0][2]).toBeCloseTo(0, 10)
+  })
+})
+
+describe('moe route', () => {
+  it('selects topK experts whose weights renormalize to 1', () => {
+    const tokenVec = [1, 0, 1]
+    const gateW = [
+      [2, 0, 0], // 专家0 -> 打分 2
+      [0, 2, 0], // 专家1 -> 打分 0
+      [2, 0, 2], // 专家2 -> 打分 4(最高)
+      [0, 0, 0], // 专家3 -> 打分 0
+    ]
+    const { chosen } = route(tokenVec, gateW, 2)
+    expect(chosen.length).toBe(2)
+    expect(chosen[0].idx).toBe(2)
+    const wsum = chosen.reduce((s, c) => s + c.weight, 0)
+    expect(wsum).toBeCloseTo(1, 10)
+  })
+})
+
+describe('synth', () => {
+  it('is deterministic for the same seed', () => {
+    expect(seededMatrix(3, 4, 7)).toEqual(seededMatrix(3, 4, 7))
+  })
+  it('has correct shape and bounded values', () => {
+    const m = seededMatrix(5, 4, 1)
+    expect(m.length).toBe(5)
+    expect(m[0].length).toBe(4)
+    for (const row of m) for (const v of row) {
+      expect(v).toBeGreaterThanOrEqual(-1)
+      expect(v).toBeLessThanOrEqual(1)
+    }
+  })
+})
+
+describe('figure geometry', () => {
+  it('colorFor: positive→red-ish, negative→blue-ish, clamps', () => {
+    expect(colorFor(1, 1)).toContain('255,107,107')
+    expect(colorFor(-1, 1)).toContain('110,168,254')
+    expect(colorFor(99, 1)).toBe(colorFor(1, 1)) // 夹住
+  })
+  it('matrixWH adds label gutters', () => {
+    expect(matrixWH({ rows: 3, cols: 4, cell: 10 })).toEqual({ w: 40, h: 30 })
+    expect(matrixWH({ rows: 3, cols: 4, cell: 10, rowLabelW: 5, colLabelH: 6 })).toEqual({ w: 45, h: 36 })
+  })
+  it('matmulLayout places A left, Bt top, result bottom-right', () => {
+    const L = matmulLayout({ m: 5, k: 4, p: 5, cell: 10, labelW: 20, colLabelH: 10, gap: 6 })
+    expect(L.headerH).toBe(10 + 4 * 10 + 6) // 56
+    expect(L.A).toEqual({ x: 20, y: 56 })
+    expect(L.Bt).toEqual({ x: 20 + 4 * 10 + 6, y: 10 }) // x=66
+    expect(L.result).toEqual({ x: 66, y: 56 })
+    expect(L.w).toBe(66 + 5 * 10) // 116
+    expect(L.h).toBe(56 + 5 * 10) // 106
+  })
+})
+
+describe('tokenizer', () => {
+  it('splits known words and subwords', () => {
+    const toks = tokenize('the cat sat')
+    expect(toks.map((t) => t.text)).toEqual(['the', 'cat', 'sat'])
+  })
+  it('breaks unknown word into subword pieces with ## continuation', () => {
+    // 'networking' 不在整词表里,被贪心切成 net + ##work + ##ing
+    const toks = tokenize('networking')
+    expect(toks.map((t) => t.text)).toEqual(['net', '##work', '##ing'])
+  })
+  it('assigns stable ids', () => {
+    const a = tokenize('cat')[0].id
+    const b = tokenize('the cat')[1].id
+    expect(a).toBe(b)
+  })
+})
