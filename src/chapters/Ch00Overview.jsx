@@ -34,6 +34,25 @@ export default function Ch00Overview({ prev, next }) {
         <div className="note">
           右边是整条流水线。蓝色的环节现在就能点进去看;灰色的还在建设中。
         </div>
+
+        <h2>DeepSeek 版本演进(谁加了什么)</h2>
+        <p>第二部分讲的几个创新分属不同版本——它们是一层层叠上去的,这样看更清楚:</p>
+        <table className="ver-table">
+          <thead>
+            <tr><th>版本</th><th>关键创新</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>V2(2024 中)</td><td><b>MLA</b>(潜变量注意力)+ <b>DeepSeekMoE</b>(细粒度+共享专家)→ 又大又省</td></tr>
+            <tr><td>V3(2024 底)</td><td>沿用 MLA/MoE,+ 无辅助损失负载均衡、+ <b>MTP</b>(多 token 预测)</td></tr>
+            <tr><td>R1(2025)</td><td>基于 V3 的推理模型(主要是训练方法,架构沿用)</td></tr>
+            <tr><td>V3.2-Exp(2025 底)</td><td>+ <b>DSA 稀疏注意力</b>:闪电索引器先选 top-k 相关块,再只对这些算注意力</td></tr>
+            <tr><td>V4(2026.4)*</td><td><b>混合稀疏注意力 CSA+HCA</b>(细粒度局部 + 廉价全局两级压缩)、<b>mHC 流形超连接</b>(替代残差)、<b>Engram 记忆</b>;1.6T 参数 / 1M 上下文</td></tr>
+          </tbody>
+        </table>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+          * V4 2026 年 4 月发布,部分架构细节来自公开/第三方分析。脉络:<b>MLA·MoE 是 V2 地基,
+          MTP 是 V3,稀疏注意力 V3.2 起、到 V4 集大成</b>——所以第二部分按版本分组,V4 单独铺开讲。
+        </p>
       </>
       <>
         <h3>前向流水线</h3>

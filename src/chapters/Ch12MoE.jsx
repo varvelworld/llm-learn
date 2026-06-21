@@ -15,7 +15,7 @@ export default function Ch12MoE({ prev, next }) {
   const maxProb = Math.max(...probs)
 
   return (
-    <ChapterLayout kicker="第 12 章 · DeepSeek" title="MoE 混合专家" prev={prev} next={next}>
+    <ChapterLayout kicker="第 12 章 · MoE · DeepSeek-V2(DeepSeekMoE)" title="MoE 混合专家" prev={prev} next={next}>
       <>
         <p>
           普通 Transformer 里,每个 token 都过<b>同一个</b>大前馈网络。

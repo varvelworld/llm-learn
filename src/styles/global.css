@@ -61,6 +61,14 @@ code { font-family: var(--mono); background: var(--bg-elev); padding: 1px 5px;
   letter-spacing: 1px;
   color: var(--text-dim);
 }
+.sidebar .subgroup-label {
+  padding: 8px 20px 4px 20px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--accent);
+  border-left: 2px solid var(--border);
+  margin-left: 12px;
+}
 .nav-item {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 20px;
@@ -164,6 +172,11 @@ textarea, input[type=text] {
 .dim-table th { background: var(--bg-elev); color: var(--text-dim); font-weight: 600; }
 .dim-table td:last-child { font-family: var(--mono); text-align: right; }
 .dim-table tr.hl td { background: rgba(110, 168, 254, 0.12); color: var(--text); font-weight: 600; }
+
+.ver-table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0; }
+.ver-table th, .ver-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+.ver-table th { background: var(--bg-elev); color: var(--text-dim); font-weight: 600; }
+.ver-table td:first-child { white-space: nowrap; color: var(--text-dim); font-family: var(--mono); }
 .chapter-text ol, .chapter-text ul { color: #cdd3de; padding-left: 22px; }
 .chapter-text li { margin: 4px 0; }
 .chip .id { color: var(--text-dim); font-size: 11px; margin-left: 6px; }
