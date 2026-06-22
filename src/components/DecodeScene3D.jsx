@@ -26,13 +26,13 @@ function heatColor(v, vmax) {
 }
 const maxAbs = (arr) => Math.max(1e-6, ...arr.map((v) => Math.abs(v)))
 
-function Cell({ x, y, v, max, outline, opacity = 1, showVal, onOver }) {
+function Cell({ x, y, v, max, outline, diag, opacity = 1, showVal, onOver }) {
   return (
     <group position={[x, y, 0]}>
-      {outline && (
+      {(outline || diag) && (
         <mesh position={[0, 0, -0.01]}>
           <planeGeometry args={[CELL, CELL]} />
-          <meshBasicMaterial color="#6ea8fe" />
+          <meshBasicMaterial color={outline ? '#6ea8fe' : '#7ee787'} />
         </mesh>
       )}
       <mesh onPointerOver={onOver ? (e) => { e.stopPropagation(); onOver() } : undefined}>
@@ -75,8 +75,9 @@ function FlatGrid({ data, cx, cy = 0, vmax, fade, rowLabels, hlRow = -1, hlCol =
   )
 }
 
-// 圆柱滚轮:每步一列贴在柱面上,绕竖轴旋转,当前步转到正前方
-function Reel({ steps, cur, cx, cy, getCol, vmax, hlRow = -1, outlineAll = false, showVal, onOver }) {
+// 圆柱滚轮:每步一列贴在柱面上,绕竖轴旋转,当前步转到正前方。
+// topY 给定时列按"键位置顶对齐"(分数/权重 → 拼成下三角,对角=本步最新);否则居中(q_t)。
+function Reel({ steps, cur, cx, cy, getCol, vmax, hlRow = -1, outlineAll = false, markDiag = false, topY = null, showVal, onOver }) {
   const rot = useRef()
   useFrame(() => {
     if (!rot.current) return
@@ -93,13 +94,14 @@ function Reel({ steps, cur, cx, cy, getCol, vmax, hlRow = -1, outlineAll = false
           const col = getCol(st)
           const n = col.length
           const max = vmax ?? maxAbs(col)
-          const yTop = ((n - 1) / 2) * CELL
+          const colTop = topY != null ? topY : ((n - 1) / 2) * CELL
           return (
             <group key={i} rotation={[0, i * DELTA, 0]}>
               <group position={[0, 0, RAD]}>
                 {col.map((v, r) => (
-                  <Cell key={r} x={0} y={yTop - r * CELL} v={v} max={max}
+                  <Cell key={r} x={0} y={colTop - r * CELL} v={v} max={max}
                     outline={active && (outlineAll || r === hlRow)}
+                    diag={markDiag && r === n - 1}
                     opacity={active ? 1 : 0.55} showVal={active && showVal}
                     onOver={active && onOver ? () => onOver(r) : undefined} />
                 ))}
@@ -151,15 +153,15 @@ function Scene({ step, allSteps, t, tokens, fade, sel, dim, mode, onScore, onVCe
       <Reel steps={allSteps} cur={cur} cx={xMid} cy={qCy} getCol={(st) => st.q} showVal={showVal} />
       <Label x={xMid} y={qCy - 2 * CELL - 0.28} text="↓ K·q_t" />
 
-      {/* 分数轮 */}
-      <Reel steps={allSteps} cur={cur} cx={xMid} cy={0} getCol={(st) => st.scores}
+      {/* 分数轮(列顶对齐 → 下三角,对角=本步最新) */}
+      <Reel steps={allSteps} cur={cur} cx={xMid} cy={0} getCol={(st) => st.scores} topY={colTopY} markDiag
         hlRow={mode === 'key' ? sel : -1} showVal={showVal} onOver={(r) => onScore(r)} />
-      <Label x={xMid} y={-colTopY - 0.4} text="分数轮" />
+      <Label x={xMid} y={-colTopY - 0.4} text="分数轮(下三角)" />
 
-      {/* 权重轮 */}
-      <Reel steps={allSteps} cur={cur} cx={xW} cy={0} getCol={(st) => st.weights} vmax={1}
+      {/* 权重轮(列顶对齐 → 下三角) */}
+      <Reel steps={allSteps} cur={cur} cx={xW} cy={0} getCol={(st) => st.weights} vmax={1} topY={colTopY} markDiag
         hlRow={mode === 'key' ? sel : -1} outlineAll={mode === 'dim'} showVal={showVal} onOver={(r) => onScore(r)} />
-      <Label x={xW} y={-colTopY - 0.4} text="权重轮" color="#7ee787" />
+      <Label x={xW} y={-colTopY - 0.4} text="权重轮(下三角)" color="#7ee787" />
 
       {/* V 缓存 */}
       <Label x={xV} y={colTopY + 0.55} text="V 缓存(2D)" />
