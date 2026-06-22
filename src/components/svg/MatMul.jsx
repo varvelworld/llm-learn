@@ -8,7 +8,7 @@ export default function MatMul({
   x = 0, y = 0, A, Bt, result, cell = T.cell,
   rowLabels, colLabels, // A 的行标签 / Bᵀ 的列标签(通常都是 token)
   selRow = -1, selCol = -1, onHoverCell, onHoverARow, onHoverBtCol,
-  vmaxIO, vmaxResult, showValues = false,
+  vmaxIO, vmaxResult, showValues = false, aRowWeights,
   aLabel = 'Q', bLabel = 'Kᵀ', resultLabel = 'Q·Kᵀ',
 }) {
   const m = A.length
@@ -21,6 +21,7 @@ export default function MatMul({
       {/* A 立左(带行标签),悬停设置查询行 */}
       <Matrix x={L.A.x - T.labelW} y={L.A.y} data={A} cell={cell}
         rowLabels={rowLabels} rowLabelW={T.labelW} highlightRow={selRow} vmax={vmaxIO} showValues={showValues}
+        rowWeights={aRowWeights}
         onHoverCell={onHoverARow ? (i) => onHoverARow(i) : undefined} />
       {/* Bᵀ 躺上(带列标签),悬停设置键列 */}
       <Matrix x={L.Bt.x} y={L.Bt.y - T.colLabelH} data={Bt} cell={cell}

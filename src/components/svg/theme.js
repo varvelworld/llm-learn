@@ -11,6 +11,7 @@ export const T = {
     accent: '#6ea8fe',
     accent2: '#7ee787',
     warn: '#f0a35e',
+    hot: '#ff6b6b',
     border: '#2a2f3a',
     bgElev: '#1e222b',
     text: '#e6e9ef',

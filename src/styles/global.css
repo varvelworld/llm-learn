@@ -70,19 +70,22 @@ code { font-family: var(--mono); background: var(--bg-elev); padding: 1px 5px;
   margin-left: 12px;
 }
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 20px;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 18px;
   color: var(--text-dim);
   cursor: pointer;
   border-left: 3px solid transparent;
   font-size: 14px;
+  line-height: 1.35;
 }
 .nav-item:hover { background: var(--bg-elev); color: var(--text); text-decoration: none; }
 .nav-item.active { color: var(--text); border-left-color: var(--accent); background: var(--bg-elev); }
-.nav-item .num { font-family: var(--mono); font-size: 12px; color: var(--text-dim); min-width: 20px; }
+.nav-item .num { font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+  min-width: 18px; flex-shrink: 0; padding-top: 1px; }
+.nav-item > span:nth-child(2) { flex: 1; min-width: 0; } /* 标题占据剩余空间、可换行 */
 .nav-item.soon { opacity: 0.45; cursor: default; }
-.nav-item .badge { margin-left: auto; font-size: 10px; color: var(--warn); border: 1px solid var(--warn);
-  border-radius: 6px; padding: 0 5px; }
+.nav-item .badge { flex-shrink: 0; white-space: nowrap; font-size: 10px; color: var(--warn);
+  border: 1px solid var(--warn); border-radius: 6px; padding: 0 5px; margin-top: 1px; }
 
 /* ---------- 章节布局 ---------- */
 .main { overflow-y: auto; }
