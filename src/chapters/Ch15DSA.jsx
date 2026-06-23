@@ -30,6 +30,9 @@ export default function Ch15DSA({ prev, next }) {
   const WQ = useMemo(() => seededMatrix(DM, DM, 3), [])
   const WK = useMemo(() => seededMatrix(DM, DM, 5), [])
   const WV = useMemo(() => seededMatrix(DM, DM, 9), [])
+  // 索引器的投影:把 token 压到 didx 维得到索引键。toy 里取注意力 WK 的前 didx 列,
+  // 这样 kI = X·W_I 恰好等于 K 的前 didx 维,和评分图对得上。
+  const WI = useMemo(() => WK.map((r) => r.slice(0, didx)), [WK, didx])
   const Q = useMemo(() => matmul(X, WQ), [X, WQ])
   const K = useMemo(() => matmul(X, WK), [X, WK])
   const V = useMemo(() => matmul(X, WV), [X, WV])
@@ -118,6 +121,115 @@ export default function Ch15DSA({ prev, next }) {
         {cells}
       </svg>
     )
+  }
+
+  // ───────── 图 A.4:投影 —— X · W_I = kI(每个 token 压到 didx 维得到索引键) ─────────
+  const renderIndexerProj = (cell) => {
+    const C = cell
+    const Xm = X.slice(0, m)
+    const kI = matmul(Xm, WI) // m×didx
+    const ioMax = Math.max(1e-6, ...[...Xm.flat(), ...WI.flat(), ...kI.flat()].map(Math.abs))
+    const maxRows = Math.max(m, DM)
+    const topPad = 22
+    const cy = topPad + (maxRows * C) / 2
+
+    const blk = (x, data, { vmax, title, rowLabels, rowHi }) => {
+      const rows = data.length
+      const cols = data[0].length
+      const h = rows * C
+      const y = cy - h / 2
+      const els = []
+      data.forEach((rowArr, i) =>
+        rowArr.forEach((v, j) => {
+          const cx = x + j * C
+          const cyy = y + i * C
+          const hi = rowHi && rowHi.has(i)
+          els.push(
+            <g key={`${title}-${i}-${j}`}>
+              <rect x={cx} y={cyy} width={C} height={C} fill={colorFor(v, vmax)}
+                stroke={hi ? T.c.accent2 : T.c.border} strokeWidth={hi ? 2 : 1} />
+              <text x={cx + C / 2} y={cyy + C * 0.66} textAnchor="middle" fontFamily={T.font}
+                fontSize={T.fs} fill="#fff" pointerEvents="none">{v.toFixed(1)}</text>
+            </g>
+          )
+        })
+      )
+      if (rowLabels) rowLabels.forEach((rl, i) =>
+        els.push(<text key={`${title}-rl${i}`} x={x - 4} y={y + i * C + C * 0.66} textAnchor="end"
+          fontFamily={T.font} fontSize={9} fill={rowHi && rowHi.has(i) ? T.c.accent2 : T.c.dim}>{rl}</text>))
+      els.push(<text key={`${title}-t`} x={x + (cols * C) / 2} y={y + h + 14} textAnchor="middle"
+        fontFamily={T.font} fontSize={11} fill={T.c.accent}>{title}</text>)
+      return { els, w: cols * C }
+    }
+    const op = (x, sym, w) => (
+      <text x={x + w / 2} y={cy} textAnchor="middle" dominantBaseline="middle"
+        fontFamily={T.font} fontSize={12} fill={T.c.dim}>{sym}</text>
+    )
+    const parts = []
+    let x = 52
+    const add = (b, opSym, opW) => { parts.push(...b.els); x += b.w; if (opSym) { parts.push(op(x, opSym, opW)); x += opW } }
+    add(blk(x, Xm, { vmax: ioMax, title: `X 前 ${m} 个 token(${DM}维)`, rowLabels: tokens.slice(0, m), rowHi: selSet }), '·', 20)
+    add(blk(x, WI, { vmax: ioMax, title: `W_I 索引投影(${DM}×${didx})` }), '=', 24)
+    add(blk(x, kI, { vmax: ioMax, title: `kI 索引键(压到 ${didx} 维)`, rowLabels: tokens.slice(0, m), rowHi: selSet }), null, 0)
+    const W = x + 16
+    const H = topPad + maxRows * C + 26
+    return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{parts}</svg>
+  }
+
+  // ───────── 图 A.5:索引器内部 —— qI · kIᵀ = 索引分数(摊开"分数怎么来") ─────────
+  // kIᵀ(索引键)= 每个 token 投到 d_idx 维;toy 里取注意力 K 的前 d_idx 维来近似。
+  const renderIndexerMath = (cell) => {
+    const C = cell
+    const qI = [Q[qp].slice(0, didx)]
+    const kI = Array.from({ length: m }, (_, j) => K[j].slice(0, didx))
+    const kIt = transpose(kI) // d_idx×m
+    const sc = [idx]
+    const ioMax = Math.max(1e-6, ...[...qI.flat(), ...kIt.flat()].map(Math.abs))
+    const topPad = 22
+    const cy = topPad + (didx * C) / 2
+
+    const blk = (x, data, { vmax, dec = 1, title, colLabels, picked }) => {
+      const rows = data.length
+      const cols = data[0].length
+      const h = rows * C
+      const y = cy - h / 2
+      const els = []
+      data.forEach((rowArr, i) =>
+        rowArr.forEach((v, j) => {
+          const cx = x + j * C
+          const cyy = y + i * C
+          const sel = picked && picked.has(j)
+          els.push(
+            <g key={`${title}-${i}-${j}`}>
+              <rect x={cx} y={cyy} width={C} height={C} fill={colorFor(v, vmax)}
+                stroke={sel ? T.c.accent2 : T.c.border} strokeWidth={sel ? 2.5 : 1} />
+              <text x={cx + C / 2} y={cyy + C * 0.66} textAnchor="middle" fontFamily={T.font}
+                fontSize={T.fs} fill="#fff" pointerEvents="none">{v.toFixed(dec)}</text>
+            </g>
+          )
+        })
+      )
+      if (colLabels) colLabels.forEach((c, j) =>
+        els.push(<text key={`${title}-cl${j}`} x={x + j * C + C / 2} y={y - 4} textAnchor="middle"
+          fontFamily={T.font} fontSize={9} fill={picked && picked.has(j) ? T.c.accent2 : T.c.dim}>{c}</text>))
+      els.push(<text key={`${title}-t`} x={x + (cols * C) / 2} y={y + h + 14} textAnchor="middle"
+        fontFamily={T.font} fontSize={11} fill={T.c.accent}>{title}</text>)
+      return { els, w: cols * C }
+    }
+    const op = (x, sym, w) => (
+      <text x={x + w / 2} y={cy} textAnchor="middle" dominantBaseline="middle"
+        fontFamily={T.font} fontSize={12} fill={T.c.dim}>{sym}</text>
+    )
+    const parts = []
+    let x = 56
+    const add = (b, opSym, opW) => { parts.push(...b.els); x += b.w; parts.push(op(x, opSym, opW)); x += opW }
+    add(blk(x, qI, { vmax: ioMax, title: `qI「${tokens[qp]}」(${didx}维)` }), '·', 20)
+    add(blk(x, kIt, { vmax: ioMax, title: `kIᵀ 索引键(${didx}维 ≪ ${DM})`, colLabels: tokens.slice(0, m) }), '=', 24)
+    const last = blk(x, sc, { vmax: idxMax, title: '索引分数(=上图那行)', colLabels: tokens.slice(0, m), picked: selSet })
+    parts.push(...last.els); x += last.w
+    const W = x + 16
+    const H = topPad + didx * C + 26
+    return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{parts}</svg>
   }
 
   // ───────── 图 B:只对选中的 k 个做真正注意力(复用第14章链路) ─────────
@@ -262,7 +374,28 @@ export default function Ch15DSA({ prev, next }) {
         <FigureBoard renderSvg={renderIndexer} baseCell={34} fullCell={50}
           controls={controls} onPageStep={onPageStep} />
 
-        <div className="cost-panel" style={{ marginTop: 4 }}>
+        <h3 style={{ marginTop: 14 }}>那行「索引器分数」是怎么算出来的?</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+          <b>① 投影出索引键</b>:每个 token(<code>X</code> 的一行,{DM} 维)经一个<b>小投影矩阵 <code>W_I</code></b>
+          (<code>{DM}×{didx}</code>)压到 <b>{didx} 维</b>,得到<b>索引键 kI</b>。这就是「token 经小投影压到 {didx} 维」
+          ——投影矩阵 <code>W_I</code> 把维度从 {DM} 砍到 {didx},正是索引器便宜的来源。
+        </p>
+        <div style={{ overflowX: 'auto', paddingBottom: 8, background: 'var(--bg)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
+          {renderIndexerProj(28)}
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '10px 0 10px' }}>
+          <b>② 打分</b>:query 同理经投影得到 <code>qI</code>({didx} 维),再 <code>qI · kIᵀ</code>
+          (kIᵀ 就是上面 kI 的转置)= 上图那行索引分数。它比注意力的 <code>q·Kᵀ</code> 窄得多
+          ({didx} 维 vs {DM} 维),所以便宜。(toy 里 <code>W_I</code> 取注意力 <code>WK</code> 的前 {didx} 列,
+          使 kI 和真实 K 对得上;真实 DSA 用独立训练的小投影,并单独缓存索引键——但很小。)
+        </p>
+        <div style={{ overflowX: 'auto', paddingBottom: 8, background: 'var(--bg)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
+          {renderIndexerMath(30)}
+        </div>
+
+        <div className="cost-panel" style={{ marginTop: 14 }}>
           <div className="cost-row">
             <span>索引器命中真实 top-{kk}</span>
             <b style={{ color: 'var(--accent-2)' }}>{hit}/{kk} · 覆盖 {Math.round(recall * 100)}% 注意力</b>
