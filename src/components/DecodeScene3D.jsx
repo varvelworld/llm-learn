@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Text, Line, Html } from '@react-three/drei'
 
@@ -182,13 +182,48 @@ function Scene({ step, allSteps, t, tokens, fade, sel, dim, mode, onScore, onVCe
   )
 }
 
-export default function DecodeScene3D(props) {
+export default function DecodeScene3D({ controls, ...props }) {
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    if (!full) return
+    const onKey = (e) => { if (e.key === 'Escape') setFull(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [full])
+
+  const canvas = (
+    <Canvas camera={{ position: [1.5, 1.2, 16.5], fov: 44 }} dpr={[1, 2]}>
+      <Scene {...props} />
+    </Canvas>
+  )
+  const hint = '拖拽旋转 · 滚轮缩放 · Esc 关闭'
+
+  if (full) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(8,10,14,0.99)' }}>
+        {canvas}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex',
+          justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px',
+          background: 'rgba(8,10,14,0.85)', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>全屏 3D &nbsp;|&nbsp; {hint}</span>
+          <button className="btn" onClick={() => setFull(false)}>✕ 关闭</button>
+        </div>
+        {controls && (
+          <div style={{ position: 'absolute', top: 54, left: 16, background: 'var(--bg-panel)',
+            border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', maxWidth: 280 }}>
+            {controls}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="scene3d" style={{ height: 500, background: 'var(--bg)', border: '1px solid var(--border)',
-      borderRadius: 10, overflow: 'hidden' }}>
-      <Canvas camera={{ position: [1.5, 1.2, 16.5], fov: 44 }} dpr={[1, 2]}>
-        <Scene {...props} />
-      </Canvas>
+    <div className="scene3d" style={{ position: 'relative', height: 500, background: 'var(--bg)',
+      border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+      {canvas}
+      <button className="btn" style={{ position: 'absolute', top: 10, right: 10 }}
+        onClick={() => setFull(true)}>⛶ 全屏</button>
     </div>
   )
 }

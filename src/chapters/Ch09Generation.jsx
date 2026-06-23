@@ -209,7 +209,8 @@ export default function Ch09Generation({ prev, next }) {
               justifyContent: 'center', color: 'var(--text-dim)', background: 'var(--bg)',
               border: '1px solid var(--border)', borderRadius: 10 }}>加载 3D 场景…</div>}>
               <DecodeScene3D step={step} allSteps={allSteps} t={t} tokens={tokens} fade={fade}
-                sel={sel} dim={dim} mode={mode} onScore={onScore} onVCell={onVCell} onOut={onOut} />
+                sel={sel} dim={dim} mode={mode} onScore={onScore} onVCell={onVCell} onOut={onOut}
+                controls={controls} />
             </Suspense>
             <p className="step-desc" style={{ marginTop: 10 }}>
               左右 <b>K / V 缓存、输出仍是 2D</b>;中间 <b style={{ color: 'var(--accent)' }}>q_t</b> / 分数 /
