@@ -331,7 +331,7 @@ export default function Ch15DSA({ prev, next }) {
 
   return (
     <ChapterLayout
-      kicker="第 15 章 · DSA + 闪电索引器 · DeepSeek-V3.2 / V4"
+      kicker="第 15 章 · DSA + 闪电索引器 · DeepSeek-V3.2(V4 在此基础上演进为 CSA)"
       title="DSA + 闪电索引器"
       prev={prev}
       next={next}
@@ -368,6 +368,11 @@ export default function Ch15DSA({ prev, next }) {
           省的是什么:索引器把<b>打分</b>从 O(n·d) 降到 O(n·d_idx),精算只在 k 个键上 O(k·d)。
           长上下文(n 很大)下,这是从<b>平方级</b>逼近<b>线性级</b>的关键。
           注意——这省的是<b>算力 / 读取带宽</b>;KV 缓存条目本身还得全留着(下一步可能选别的键)。
+        </div>
+        <div className="note" style={{ marginTop: 8 }}>
+          版本归属:<b>DSA(token 级)+ 闪电索引器是 DeepSeek-V3.2</b> 的方案,对<b>单个 token</b> 选 top-k。
+          <b>V4 不直接用它</b>,而是把同一思想搬到<b>压缩块</b>上,并补一条滑动窗口 —— 这就是下一章的
+          <b> CSA</b>(闪电索引器沿用,打分对象从 token 变成压缩块)。
         </div>
       </>
       <>
