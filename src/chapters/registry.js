@@ -3,6 +3,8 @@ import Ch00Overview from './Ch00Overview.jsx'
 import Ch01Tokenization from './Ch01Tokenization.jsx'
 import Ch02Embedding from './Ch02Embedding.jsx'
 import Ch04Attention from './Ch04Attention.jsx'
+import Ch05MultiHead from './Ch05MultiHead.jsx'
+import Ch06FFN from './Ch06FFN.jsx'
 import Ch07Norm from './Ch07Norm.jsx'
 import Ch09Generation from './Ch09Generation.jsx'
 import Ch10Sampling from './Ch10Sampling.jsx'
@@ -19,8 +21,8 @@ export const CHAPTERS = [
   { num: 2, slug: 'embedding', title: '词嵌入 Embedding', part: 'basics', Component: Ch02Embedding },
   { num: 3, slug: 'rope', title: '位置信息 RoPE', part: 'basics', Component: null },
   { num: 4, slug: 'attention', title: '自注意力(核心)', part: 'basics', Component: Ch04Attention },
-  { num: 5, slug: 'multihead', title: '多头注意力', part: 'basics', Component: null },
-  { num: 6, slug: 'ffn', title: '前馈 FFN / SwiGLU', part: 'basics', Component: null },
+  { num: 5, slug: 'multihead', title: '多头注意力', part: 'basics', Component: Ch05MultiHead },
+  { num: 6, slug: 'ffn', title: '前馈 FFN / SwiGLU', part: 'basics', Component: Ch06FFN },
   { num: 7, slug: 'norm', title: '残差 & RMSNorm', part: 'basics', Component: Ch07Norm },
   { num: 8, slug: 'block', title: 'Transformer Block', part: 'basics', Component: null },
   { num: 9, slug: 'generation', title: '自回归生成 + KV 缓存', part: 'basics', Component: Ch09Generation },
