@@ -17,6 +17,7 @@ function NavItem({ c }) {
 }
 
 function Sidebar() {
+  const prep = CHAPTERS.filter((c) => c.part === 'prep')
   const basics = CHAPTERS.filter((c) => c.part === 'basics')
   const deep = CHAPTERS.filter((c) => c.part === 'deepseek')
   const deepGroups = [...new Set(deep.map((c) => c.group))] // 按版本顺序的子分组
@@ -26,6 +27,9 @@ function Sidebar() {
         可视化学习 LLM
         <small>从零搭到 DeepSeek 架构</small>
       </div>
+
+      <div className="group-label">第 0 部分 · 预备知识(向量与矩阵)</div>
+      {prep.map((c) => <NavItem key={c.slug} c={c} />)}
 
       <div className="group-label">第一部分 · 基础(标准 Transformer)</div>
       {basics.map((c) => <NavItem key={c.slug} c={c} />)}

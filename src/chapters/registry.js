@@ -1,4 +1,6 @@
 // 章节注册表:侧边栏、路由、翻页都从这里派生(单一数据源)。
+import P1Vectors from './P1Vectors.jsx'
+import P2Ops from './P2Ops.jsx'
 import Ch00Overview from './Ch00Overview.jsx'
 import Ch01Tokenization from './Ch01Tokenization.jsx'
 import Ch02Embedding from './Ch02Embedding.jsx'
@@ -18,6 +20,8 @@ import Ch16CSAHCA from './Ch16CSAHCA.jsx'
 
 // part: 'basics' | 'deepseek'。Component 为 null 表示"建设中"。
 export const CHAPTERS = [
+  { num: 'P1', slug: 'vectors', title: '向量与矩阵', part: 'prep', Component: P1Vectors },
+  { num: 'P2', slug: 'vec-ops', title: '五种核心运算', part: 'prep', Component: P2Ops },
   { num: 0, slug: 'overview', title: '总览地图', part: 'basics', Component: Ch00Overview },
   { num: 1, slug: 'tokenization', title: '分词 Tokenization', part: 'basics', Component: Ch01Tokenization },
   { num: 2, slug: 'embedding', title: '词嵌入 Embedding', part: 'basics', Component: Ch02Embedding },
