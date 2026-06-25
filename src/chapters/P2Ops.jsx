@@ -42,6 +42,7 @@ export default function P2Ops({ prev, next }) {
   const [th, setTh] = useState(50) // 度
   const [s, setS] = useState(1.2)
   const [gates, setGates] = useState([1, 0.5, 0, 1.5]) // 门控图:每维一个阀门
+  const [projDir, setProjDir] = useState('both') // 点积投影方向:'ab' | 'ba' | 'both'
 
   const cur = OPS.find((o) => o.k === op)
 
@@ -178,23 +179,40 @@ export default function P2Ops({ prev, next }) {
     } else if (op === 'dot') {
       const Pb = P(b[0], b[1])
       const bb = b[0] * b[0] + b[1] * b[1]
+      const aa = a[0] * a[0] + a[1] * a[1]
       const dotv = a[0] * b[0] + a[1] * b[1]
-      const t = dotv / (bb || 1)
-      const foot = [b[0] * t, b[1] * t]
-      const Pf = P(foot[0], foot[1])
+      const la = Math.sqrt(aa); const lb = Math.sqrt(bb)
+      const CP = '#d2a8ff' // 紫:b 投影到 a
+      // a 投影到 b(沿 b 方向)
+      const footAB = [b[0] * (dotv / (bb || 1)), b[1] * (dotv / (bb || 1))]
+      const Pfab = P(footAB[0], footAB[1])
+      // b 投影到 a(沿 a 方向)
+      const footBA = [a[0] * (dotv / (aa || 1)), a[1] * (dotv / (aa || 1))]
+      const Pfba = P(footBA[0], footBA[1])
       els.push(arrow('b', ...O, ...Pb, T.c.accent2))
       els.push(arrow('a', ...O, ...Pa, T.c.accent))
-      // 投影垂线 + 投影段
-      els.push(<line key="perp" x1={Pa[0]} y1={Pa[1]} x2={Pf[0]} y2={Pf[1]} stroke={T.c.dim} strokeWidth={1} strokeDasharray="3 3" />)
-      els.push(<line key="proj" x1={cx} y1={cy} x2={Pf[0]} y2={Pf[1]} stroke={T.c.warn} strokeWidth={4} />)
+      if (projDir === 'ab' || projDir === 'both') {
+        els.push(<line key="perpAB" x1={Pa[0]} y1={Pa[1]} x2={Pfab[0]} y2={Pfab[1]} stroke={T.c.dim} strokeWidth={1} strokeDasharray="3 3" />)
+        els.push(<line key="projAB" x1={cx} y1={cy} x2={Pfab[0]} y2={Pfab[1]} stroke={T.c.warn} strokeWidth={4.5} />)
+      }
+      if (projDir === 'ba' || projDir === 'both') {
+        els.push(<line key="perpBA" x1={Pb[0]} y1={Pb[1]} x2={Pfba[0]} y2={Pfba[1]} stroke={T.c.dim} strokeWidth={1} strokeDasharray="3 3" />)
+        els.push(<line key="projBA" x1={cx} y1={cy} x2={Pfba[0]} y2={Pfba[1]} stroke={CP} strokeWidth={4.5} />)
+      }
       els.push(<text key="la" x={Pa[0] + 6} y={Pa[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
       els.push(<text key="lb" x={Pb[0] + 6} y={Pb[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent2}>b</text>)
-      const cos = dotv / (Math.hypot(...a) * Math.hypot(...b) || 1)
+      const cos = dotv / (la * lb || 1)
       const ang = (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI
-      els.push(<text key="dv" x={30} y={cy + R * unit + 20} fontFamily={T.font} fontSize={12} fill={T.c.warn}>
-        a·b = {dotv.toFixed(2)}(夹角 {ang.toFixed(0)}°,{dotv > 0 ? '同向→正' : dotv < 0 ? '反向→负' : '垂直→0'})</text>)
-      els.push(<text key="dv2" x={30} y={cy + R * unit + 36} fontFamily={T.font} fontSize={10} fill={T.c.dim}>
-        橙色粗线 = a 投影到 b 上的长度;点积就是「a 在 b 方向上有多少」×|b|</text>)
+      const pAB = dotv / (lb || 1) // a 在 b 方向上的投影长度
+      const pBA = dotv / (la || 1) // b 在 a 方向上的投影长度
+      els.push(<text key="dv" x={30} y={cy + R * unit + 20} fontFamily={T.font} fontSize={12} fill={T.c.text}>
+        a·b = b·a = <tspan fill={T.c.warn} fontWeight="bold">{dotv.toFixed(2)}</tspan>(夹角 {ang.toFixed(0)}°)</text>)
+      els.push(<text key="dv2" x={30} y={cy + R * unit + 37} fontFamily={T.font} fontSize={10.5} fill={T.c.warn}>
+        橙:a→b 投影 {pAB.toFixed(2)} × |b|={lb.toFixed(2)} = {(pAB * lb).toFixed(2)}</text>)
+      els.push(<text key="dv3" x={30} y={cy + R * unit + 52} fontFamily={T.font} fontSize={10.5} fill={CP}>
+        紫:b→a 投影 {pBA.toFixed(2)} × |a|={la.toFixed(2)} = {(pBA * la).toFixed(2)}</text>)
+      els.push(<text key="dv4" x={30} y={cy + R * unit + 67} fontFamily={T.font} fontSize={10} fill={T.c.dim}>
+        两条投影长度不同,但「投影 × 另一向量长度」相等 → 点积可交换</text>)
     } else if (op === 'matmul') {
       const r = (th * Math.PI) / 180
       const c0 = [s * Math.cos(r), s * Math.sin(r)] // M 第 1 列 = e0 的落点
@@ -240,7 +258,7 @@ export default function P2Ops({ prev, next }) {
     // 顶部说明
     els.push(<text key="cap" x={30} y={16} fontFamily={T.font} fontSize={11} fill={T.c.accent}>{cur.cap}</text>)
     const W = cx + R * unit + 130
-    const H = cy + R * unit + 46
+    const H = cy + R * unit + (op === 'dot' ? 78 : 46)
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
@@ -266,6 +284,16 @@ export default function P2Ops({ prev, next }) {
       {slider('a.y', a[1], (v) => setA([a[0], v]), -4, 4, 0.5)}
       {needsB && slider('b.x', b[0], (v) => setB([v, b[1]]), -4, 4, 0.5, 'var(--accent2)')}
       {needsB && slider('b.y', b[1], (v) => setB([b[0], v]), -4, 4, 0.5, 'var(--accent2)')}
+      {op === 'dot' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--text-dim)' }}>投影方向</span>
+          {[['ab', 'a→b'], ['ba', 'b→a'], ['both', '两者']].map(([k2, lbl]) => (
+            <button key={k2} className="btn" onClick={() => setProjDir(k2)}
+              style={{ padding: '2px 9px', fontSize: 11, background: projDir === k2 ? 'var(--accent)' : 'var(--bg)',
+                color: projDir === k2 ? '#0f1115' : 'var(--text-dim)', fontWeight: projDir === k2 ? 700 : 400 }}>{lbl}</button>
+          ))}
+        </div>
+      )}
       {op === 'scale' && slider('k', k, setK, -2, 3, 0.1, 'var(--warn)')}
       {op === 'matmul' && slider('旋转°', th, setTh, -180, 180, 5, 'var(--warn)')}
       {op === 'matmul' && slider('缩放', s, setS, 0.2, 2, 0.1, 'var(--warn)')}
