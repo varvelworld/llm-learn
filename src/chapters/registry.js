@@ -6,6 +6,7 @@ import Ch04Attention from './Ch04Attention.jsx'
 import Ch05MultiHead from './Ch05MultiHead.jsx'
 import Ch06FFN from './Ch06FFN.jsx'
 import Ch07Norm from './Ch07Norm.jsx'
+import Ch08Block from './Ch08Block.jsx'
 import Ch09Generation from './Ch09Generation.jsx'
 import Ch10Sampling from './Ch10Sampling.jsx'
 import Ch11MLA from './Ch11MLA.jsx'
@@ -24,7 +25,7 @@ export const CHAPTERS = [
   { num: 5, slug: 'multihead', title: '多头注意力', part: 'basics', Component: Ch05MultiHead },
   { num: 6, slug: 'ffn', title: '前馈 FFN / SwiGLU', part: 'basics', Component: Ch06FFN },
   { num: 7, slug: 'norm', title: '残差 & RMSNorm', part: 'basics', Component: Ch07Norm },
-  { num: 8, slug: 'block', title: 'Transformer Block', part: 'basics', Component: null },
+  { num: 8, slug: 'block', title: 'Transformer Block', part: 'basics', Component: Ch08Block },
   { num: 9, slug: 'generation', title: '自回归生成 + KV 缓存', part: 'basics', Component: Ch09Generation },
   { num: 10, slug: 'sampling', title: '输出与采样', part: 'basics', Component: Ch10Sampling },
   { num: 11, slug: 'mla', title: 'MLA 潜变量注意力', part: 'deepseek', group: 'V2 · 又大又省', Component: Ch11MLA },
