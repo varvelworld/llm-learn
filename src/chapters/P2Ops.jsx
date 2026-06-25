@@ -84,12 +84,13 @@ export default function P2Ops({ prev, next }) {
       const m00 = s * Math.cos(r); const m10 = s * Math.sin(r)
       const m01 = -s * Math.sin(r); const m11 = s * Math.cos(r)
       const Ma = [m00 * a[0] + m01 * a[1], m10 * a[0] + m11 * a[1]]
-      const row0 = `${num(m00)}\\cdot${tc(CA, num(a[0]))}${signTerm(m01, a[1])}`
-      const row1 = `${num(m10)}\\cdot${tc(CA, num(a[0]))}${signTerm(m11, a[1])}`
       const Mmat = `\\begin{bmatrix} ${num(m00)} & ${num(m01)} \\\\ ${num(m10)} & ${num(m11)} \\end{bmatrix}`
+      const CD = '#9aa3b2' // 灰:对应图里 e₀/e₁ 的落点箭头
+      const col0 = tc(CD, `\\begin{bmatrix} ${num(m00)} \\\\ ${num(m10)} \\end{bmatrix}`)
+      const col1 = tc(CD, `\\begin{bmatrix} ${num(m01)} \\\\ ${num(m11)} \\end{bmatrix}`)
       return {
-        tex: `\\begin{aligned} ${tc(CR, 'M')}\\,${tc(CA, 'a')} &= ${Mmat}\\,${vec(a[0], a[1], CA)} \\\\ &= \\begin{bmatrix} ${row0} \\\\ ${row1} \\end{bmatrix} = ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
-        note: `M = 旋转 ${th}° + 缩放 ${s}×;每个分量 = M 的一行 · a 的点积`,
+        tex: `\\begin{aligned} ${tc(CR, 'M')}\\,${tc(CA, 'a')} &= ${Mmat}\\,${vec(a[0], a[1], CA)} = ${tc(CA, num(a[0]))}\\,\\underbrace{${col0}}_{e_0\\,\\text{落点}=\\text{列}0} + ${tc(CA, num(a[1]))}\\,\\underbrace{${col1}}_{e_1\\,\\text{落点}=\\text{列}1} \\\\ &= ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
+        note: `M 的两列 = 基向量 e₀=(1,0)、e₁=(0,1) 变换后的落点(图里两根灰箭头);M·a 就是用 a 的分量 ${num(a[0])}、${num(a[1])} 去加权这两个落点`,
       }
     }
     const h = [a[0] * b[0], a[1] * b[1]]
