@@ -43,6 +43,55 @@ export default function P2Ops({ prev, next }) {
 
   const cur = OPS.find((o) => o.k === op)
 
+  // ── 当前运算的数值公式(与右图同步,颜色对应箭头) ──
+  const num = (v) => (Number.isInteger(v) ? `${v}` : v.toFixed(2))
+  const A = (s) => <span style={{ color: 'var(--accent)' }}>{s}</span>
+  const Bc = (s) => <span style={{ color: 'var(--accent2)' }}>{s}</span>
+  const Rc = (s) => <span style={{ color: 'var(--warn)' }}>{s}</span>
+  const formula = (() => {
+    if (op === 'add') {
+      const s = [a[0] + b[0], a[1] + b[1]]
+      return [
+        <>{A('a')} + {Bc('b')} = {A(`[${num(a[0])}, ${num(a[1])}]`)} + {Bc(`[${num(b[0])}, ${num(b[1])}]`)}</>,
+        <>= [ {num(a[0])}+{num(b[0])} , {num(a[1])}+{num(b[1])} ] = {Rc(`[${num(s[0])}, ${num(s[1])}]`)}</>,
+        <span style={{ color: 'var(--text-dim)' }}>对应维度各自相加,结果还是个向量(平移)</span>,
+      ]
+    }
+    if (op === 'scale') {
+      const ka = [a[0] * k, a[1] * k]
+      return [
+        <>{Rc('k·a')} = {num(k)} · {A(`[${num(a[0])}, ${num(a[1])}]`)} = {Rc(`[${num(ka[0])}, ${num(ka[1])}]`)}</>,
+        <span style={{ color: 'var(--text-dim)' }}>每维同乘一个数:只改长度({k < 0 ? '且反向' : '方向不变'})</span>,
+      ]
+    }
+    if (op === 'dot') {
+      const p0 = a[0] * b[0]; const p1 = a[1] * b[1]; const d = p0 + p1
+      return [
+        <>{A('a')} · {Bc('b')} = {A(num(a[0]))}·{Bc(num(b[0]))} + {A(num(a[1]))}·{Bc(num(b[1]))}</>,
+        <>= {num(p0)} + {num(p1)} = {Rc(num(d))} <span style={{ color: 'var(--text-dim)' }}>(一个标量,不是向量)</span></>,
+        <span style={{ color: 'var(--text-dim)' }}>逐维相乘<b>再相加</b> → 衡量两者多对齐(注意力打分就是它)</span>,
+      ]
+    }
+    if (op === 'matmul') {
+      const r = (th * Math.PI) / 180
+      const m00 = s * Math.cos(r); const m10 = s * Math.sin(r)
+      const m01 = -s * Math.sin(r); const m11 = s * Math.cos(r)
+      const Ma = [m00 * a[0] + m01 * a[1], m10 * a[0] + m11 * a[1]]
+      return [
+        <>M = [[{num(m00)}, {num(m01)}], [{num(m10)}, {num(m11)}]] <span style={{ color: 'var(--text-dim)' }}>(旋转{th}°·缩放{s})</span></>,
+        <>{Rc('M·a')} = [ {num(m00)}·{A(num(a[0]))} + {num(m01)}·{A(num(a[1]))} , {num(m10)}·{A(num(a[0]))} + {num(m11)}·{A(num(a[1]))} ]</>,
+        <>= {Rc(`[${num(Ma[0])}, ${num(Ma[1])}]`)} <span style={{ color: 'var(--text-dim)' }}>(每个分量 = M 一行 · a 的点积)</span></>,
+      ]
+    }
+    // hadamard
+    const h = [a[0] * b[0], a[1] * b[1]]
+    return [
+      <>{A('a')} ⊙ {Bc('b')} = [ {A(num(a[0]))}·{Bc(num(b[0]))} , {A(num(a[1]))}·{Bc(num(b[1]))} ]</>,
+      <>= {Rc(`[${num(h[0])}, ${num(h[1])}]`)} <span style={{ color: 'var(--text-dim)' }}>(逐维相乘,<b>不求和</b> → 还是向量)</span></>,
+      <span style={{ color: 'var(--text-dim)' }}>b 的每个分量当作该维的「阀门」:>1 放大、{'<'}1 收小</span>,
+    ]
+  })()
+
   const render = (cell) => {
     const unit = cell * 1.4
     const R = 5
@@ -197,6 +246,11 @@ export default function P2Ops({ prev, next }) {
           蓝=a,绿=b,橙=运算结果。切换运算按钮,拖滑块实时看几何变化。
         </p>
         <FigureBoard renderSvg={render} baseCell={22} fullCell={34} controls={controls} />
+        <div style={{ marginTop: 10, fontFamily: 'var(--mono)', fontSize: 13, background: 'var(--bg)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', lineHeight: 1.8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>数值公式(随滑块实时变,对照右图箭头)</div>
+          {formula.map((line, i) => <div key={i}>{line}</div>)}
+        </div>
         <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 10 }}>{cur.cap} &nbsp;·&nbsp; <b style={{ color: 'var(--accent2)' }}>{cur.llm}</b></p>
       </>
     </ChapterLayout>
