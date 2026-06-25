@@ -6,7 +6,7 @@ import MatMul from '../components/svg/MatMul.jsx'
 import Matrix from '../components/svg/Matrix.jsx'
 import Edge from '../components/svg/Edge.jsx'
 import { T } from '../components/svg/theme.js'
-import { colorFor, matmulLayout } from '../lib/figure.js'
+import { matmulLayout } from '../lib/figure.js'
 import { seededMatrix } from '../lib/synth.js'
 import { dot } from '../lib/tensor.js'
 import { relu } from '../lib/ffn.js'
@@ -77,25 +77,22 @@ export default function P3NeuronMatrix({ prev, next }) {
     return `\\begin{aligned} z &= ${tc(CR, 'w')}\\cdot ${tc(CA, 'x')} + b = ${s} ${plus('', B1).trim()} \\\\ &= ${num(z1)},\\quad a = \\mathrm{ReLU}(z) = ${tc(CR, num(a1))} \\end{aligned}`
   })()
 
-  // ───────── 图 2:一层神经元 = 矩阵 × 向量 ─────────
-  const renderLayer = () => {
-    const ix = 50; const xs = [60, 120, 180]; const ir = 15
-    const nx = 250; const nys = [48, 104, 160, 216]; const nr = 15
-    const mX = 320; const cs = 26; const mTop = 40
+  // ───────── 图 2:一层神经元图 ↔ 矩阵乘交叉布局(融合在一张图) ─────────
+  const renderLayer = (cell) => {
     const els = []
-    // 全连接边
+    // ---- 左:神经网络图(圆圈 + 连线) ----
+    const ix = 46; const xs = [70, 126, 182]; const ir = 14
+    const nx = 196; const nys = [70, 122, 174, 226]; const nr = 14
     x.forEach((_, i) => nys.forEach((nyj, j) => {
       const on = j === sel
       els.push(<line key={`e${i}-${j}`} x1={ix + ir} y1={xs[i]} x2={nx - nr} y2={nyj}
         stroke={on ? NEU[j] : T.c.border} strokeWidth={on ? 1.8 : 0.7} opacity={on ? 0.9 : 0.5} />)
     }))
-    // 输入
     x.forEach((xi, i) => {
       els.push(<circle key={`in${i}`} cx={ix} cy={xs[i]} r={ir} fill={T.c.bgElev} stroke={CA} strokeWidth={1.4} />)
       els.push(<text key={`int${i}`} x={ix} y={xs[i] + 4} textAnchor="middle" fontFamily={T.font} fontSize={11} fill="#fff">{num(xi)}</text>)
       els.push(<text key={`inl${i}`} x={ix - ir - 5} y={xs[i] + 4} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.dim}>x{i}</text>)
     })
-    // 神经元
     nys.forEach((nyj, j) => {
       const on = j === sel
       els.push(<circle key={`ne${j}`} cx={nx} cy={nyj} r={nr} fill={T.c.bgElev} stroke={on ? NEU[j] : T.c.border} strokeWidth={on ? 2.4 : 1.2}
@@ -103,18 +100,47 @@ export default function P3NeuronMatrix({ prev, next }) {
       els.push(<text key={`net${j}`} x={nx} y={nyj + 4} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={on ? NEU[j] : T.c.dim}>{num(aL[j])}</text>)
       els.push(<text key={`nel${j}`} x={nx + nr + 4} y={nyj + 4} fontFamily={T.font} fontSize={9} fill={on ? NEU[j] : T.c.dim}>a{j}</text>)
     })
-    els.push(<text key="nhint" x={nx} y={20} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.dim}>点神经元 →</text>)
-    // 权重矩阵 W(4×3),高亮所选行
-    els.push(<text key="wlbl" x={mX + (3 * cs) / 2} y={mTop - 8} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>W (4×3)</text>)
-    WL.forEach((row, j) => row.forEach((v, i) => {
-      const on = j === sel
-      els.push(<rect key={`m${j}-${i}`} x={mX + i * cs} y={mTop + j * cs} width={cs} height={cs}
-        fill={colorFor(v, 1.5)} stroke={on ? NEU[j] : T.c.border} strokeWidth={on ? 2.2 : 0.6} />)
-      els.push(<text key={`mt${j}-${i}`} x={mX + i * cs + cs / 2} y={mTop + j * cs + cs * 0.64} textAnchor="middle"
-        fontFamily={T.font} fontSize={9} fill="#fff">{v.toFixed(1)}</text>)
-    }))
-    els.push(<text key="wrow" x={mX + 3 * cs + 8} y={mTop + sel * cs + cs * 0.64} fontFamily={T.font} fontSize={9} fill={NEU[sel]}>← 第{sel}行 = 神经元{sel}的权重</text>)
-    return <svg width={520} height={250} style={{ display: 'block' }}>{els}</svg>
+    els.push(<text key="ncap" x={(ix + nx) / 2} y={30} textAnchor="middle" fontFamily={T.font} fontSize={11} fill={T.c.dim}>神经网络图(点神经元)</text>)
+
+    // ---- 右:矩阵乘交叉布局 W·x + b → ReLU → a ----
+    const mmX = 296; const mmY = 26
+    const L = matmulLayout({ m: 4, k: 3, p: 1, cell, labelW: T.labelW, colLabelH: T.colLabelH, gap: T.gap })
+    const baseY = mmY + L.headerH
+    const midY = baseY + (4 * cell) / 2
+    const xCol = x.map((v) => [v])
+    const colData = [WxOnly, BL, zL, aL].map((arr) => arr.map((v) => [v]))
+    const resRight = mmX + L.result.x + cell
+    const plusX = resRight + 14; const bX = plusX + 16
+    const eqX = bX + cell + 10; const zX = eqX + 16
+    const aLX = zX + cell + 42
+    const colLabel = (cx, txt, color) => (
+      <text key={`cl${cx}`} x={cx + cell / 2} y={baseY - 6} textAnchor="middle" fontFamily={T.font} fontSize={T.fsLabel} fill={color}>{txt}</text>
+    )
+    // 中间「≡ 写成矩阵乘」连接
+    const linkX = (nx + nr + (mmX + L.A.x)) / 2
+    els.push(<text key="lk1" x={linkX} y={midY - 8} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.dim}>写成</text>)
+    els.push(<text key="lk2" x={linkX} y={midY + 6} textAnchor="middle" fontFamily={T.font} fontSize={16} fill={T.c.dim}>≡</text>)
+    els.push(<text key="lk3" x={linkX} y={midY + 20} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.dim}>矩阵乘</text>)
+
+    const svgW = aLX + cell + 80
+    const svgH = Math.max(nys[3] + nr + 16, mmY + L.h + 8)
+    return (
+      <svg width={svgW} height={svgH} style={{ display: 'block', minWidth: svgW }}>
+        {els}
+        <MatMul x={mmX} y={mmY} A={WL} Bt={xCol} result={colData[0]} cell={cell}
+          rowLabels={['a0', 'a1', 'a2', 'a3']} selRow={sel} showValues
+          aLabel="W (4×3)" bLabel="x" resultLabel="W·x" />
+        <text x={plusX} y={midY} textAnchor="middle" dominantBaseline="central" fontFamily={T.font} fontSize={15} fill={T.c.dim}>+</text>
+        <Matrix x={bX} y={baseY} data={colData[1]} cell={cell} highlightRow={sel} showValues vmax={1} />
+        {colLabel(bX, 'b', T.c.warn)}
+        <text x={eqX} y={midY} textAnchor="middle" dominantBaseline="central" fontFamily={T.font} fontSize={15} fill={T.c.dim}>=</text>
+        <Matrix x={zX} y={baseY} data={colData[2]} cell={cell} highlightRow={sel} showValues />
+        {colLabel(zX, 'z', T.c.accent)}
+        <Edge from={{ x: zX + cell, y: midY }} to={{ x: aLX, y: midY }} label={'ReLU'} />
+        <Matrix x={aLX} y={baseY} data={colData[3]} cell={cell} highlightRow={sel} showValues />
+        {colLabel(aLX, 'a 输出', T.c.accent2)}
+      </svg>
+    )
   }
 
   // 一层选中神经元 LaTeX
@@ -126,46 +152,6 @@ export default function P3NeuronMatrix({ prev, next }) {
     const col = NEU[sel]
     return `\\begin{aligned} ${tc(col, `a_${sel}`)} &= \\mathrm{ReLU}\\big(\\underbrace{${tc(col, `W_{${sel},:}`)}\\cdot ${tc(CA, 'x')}}_{\\text{第${sel}行 · 输入}} + b_${sel}\\big) \\\\ &= \\mathrm{ReLU}(${s} ${plus('', BL[sel]).trim()}) = \\mathrm{ReLU}(${num(zL[sel])}) = ${tc(col, num(aL[sel]))} \\end{aligned}`
   })()
-
-  // ───────── 图 3:写成矩阵乘法 W·x + b → ReLU → a(自注意力同款交叉布局) ─────────
-  const renderMatrixForm = (cell) => {
-    const L = matmulLayout({ m: 4, k: 3, p: 1, cell, labelW: T.labelW, colLabelH: T.colLabelH, gap: T.gap })
-    const baseY = L.headerH
-    const midY = baseY + (4 * cell) / 2
-    const xCol = x.map((v) => [v])
-    const colData = [WxOnly, BL, zL, aL].map((arr) => arr.map((v) => [v]))
-    const EDGE = 40
-    const resRight = L.result.x + cell
-    const plusX = resRight + 14
-    const bX = plusX + 16
-    const eqX = bX + cell + 10
-    const zX = eqX + 16
-    const aLX = zX + cell + EDGE + 6
-    const colLabel = (cx, txt, color) => (
-      <text x={cx + cell / 2} y={baseY - 6} textAnchor="middle" fontFamily={T.font} fontSize={T.fsLabel} fill={color}>{txt}</text>
-    )
-    const svgW = aLX + cell + 70
-    const svgH = L.h + 20
-    return (
-      <svg width={svgW} height={svgH} style={{ display: 'block', minWidth: svgW }}>
-        <MatMul x={0} y={0} A={WL} Bt={xCol} result={colData[0]} cell={cell}
-          rowLabels={['a0', 'a1', 'a2', 'a3']} selRow={sel} showValues
-          aLabel="W (4×3)" bLabel="x" resultLabel="W·x" />
-        {/* + b */}
-        <text x={plusX} y={midY} textAnchor="middle" dominantBaseline="central" fontFamily={T.font} fontSize={15} fill={T.c.dim}>+</text>
-        <Matrix x={bX} y={baseY} data={colData[1]} cell={cell} highlightRow={sel} showValues vmax={1} />
-        {colLabel(bX, 'b', T.c.warn)}
-        {/* = z */}
-        <text x={eqX} y={midY} textAnchor="middle" dominantBaseline="central" fontFamily={T.font} fontSize={15} fill={T.c.dim}>=</text>
-        <Matrix x={zX} y={baseY} data={colData[2]} cell={cell} highlightRow={sel} showValues />
-        {colLabel(zX, 'z', T.c.accent)}
-        {/* ReLU → a */}
-        <Edge from={{ x: zX + cell, y: midY }} to={{ x: aLX, y: midY }} label={'ReLU'} />
-        <Matrix x={aLX} y={baseY} data={colData[3]} cell={cell} highlightRow={sel} showValues />
-        {colLabel(aLX, 'a 输出', T.c.accent2)}
-      </svg>
-    )
-  }
 
   const xSliders = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
@@ -223,7 +209,7 @@ export default function P3NeuronMatrix({ prev, next }) {
           <Tex block>{`\\textcolor{#7ee787}{a} = \\sigma(\\,W\\textcolor{#6ea8fe}{x} + b\\,),\\qquad a_j = \\sigma(\\underbrace{W_{j,:}}_{\\text{第 j 行}}\\cdot \\textcolor{#6ea8fe}{x} + b_j)`}</Tex>
         </div>
         <p>
-          右图里<b>连到第 j 个神经元的那束连线</b>,就是<b>矩阵 W 的第 j 行</b>。
+          下图<b>左侧</b>神经网络里、<b>连到第 j 个神经元的那束连线</b>,就是<b>右侧矩阵 W 的第 j 行</b>。
           神经网络图密密麻麻的连线,本质就是矩阵里一个个权重数;「<b>全连接层</b>」= 一次 <code>Wx+b</code>。
         </p>
         <div className="note">
@@ -241,22 +227,14 @@ export default function P3NeuronMatrix({ prev, next }) {
         <FigureBoard renderSvg={renderNeuron} baseCell={22} fullCell={34} controls={xSliders} />
         {panel(neuronTex, '加权和 w·x 就是点积;加 b 后过激活 = 这个神经元的输出。')}
 
-        <h3 style={{ marginTop: 18 }}>图 2 · 一层 = 矩阵 × 向量</h3>
+        <h3 style={{ marginTop: 18 }}>图 2 · 一层神经元 ↔ 矩阵乘交叉布局</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          4 个神经元、3 个输入,全连接。点某个神经元(或下方按钮):高亮它的连线 = 权重矩阵 W 的对应<b>行</b>。
+          同一层、左右两种画法<b>对照看</b>:左是神经网络图(4 神经元、3 输入全连接),
+          右是<b>「矩阵乘交叉布局」</b>(W 立左、输入 x 躺上、结果在右下),再 +b 过 ReLU 得输出 a。
+          点神经元(或下方按钮):它的<b>连线</b>就是 W 的对应<b>行</b>,两边同步高亮。这种摆法后面(如自注意力)会反复用到。
         </p>
-        <FigureBoard renderSvg={renderLayer} baseCell={22} fullCell={34} controls={layerCtl} />
-        {panel(layerTex, '选中神经元的输出 = (W 的那一行 · x + 偏置)过激活;4 个神经元一起 = 一次 Wx+b。')}
-
-        <h3 style={{ marginTop: 18 }}>图 3 · 写成矩阵乘法(自注意力同款布局)</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          把<b>输入 x、输出 z/a 都摆成矩阵里的列向量</b>:W 立左、x 躺上、结果在右下——
-          这正是后面自注意力章节用的交叉布局。整层一步算完:<code>a = ReLU(W·x + b)</code>。
-        </p>
-        <FigureBoard renderSvg={renderMatrixForm} baseCell={24} fullCell={36} controls={layerCtl} />
-        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 8 }}>
-          结果列每个格子 = W 对应行与 x 的点积;再加偏置 b 得 z,过 ReLU 得输出 a。高亮行对应所选神经元。
-        </p>
+        <FigureBoard renderSvg={renderLayer} baseCell={24} fullCell={36} controls={layerCtl} />
+        {panel(layerTex, '左图的一束连线 = 右图 W 的一行;选中神经元输出 = (W 那一行 · x + 偏置)过激活,4 个一起 = 一次 Wx+b。')}
       </>
     </ChapterLayout>
   )
