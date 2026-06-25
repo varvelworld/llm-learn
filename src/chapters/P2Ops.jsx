@@ -46,6 +46,21 @@ export default function P2Ops({ prev, next }) {
 
   const cur = OPS.find((o) => o.k === op)
 
+  // ── 点积投影分解 + 交换律(LaTeX,op==='dot' 时显示) ──
+  const dotInfo = (() => {
+    const dotv = a[0] * b[0] + a[1] * b[1]
+    const la = Math.hypot(a[0], a[1]); const lb = Math.hypot(b[0], b[1])
+    const cos = dotv / (la * lb || 1)
+    const ang = (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI
+    const pAB = dotv / (lb || 1); const pBA = dotv / (la || 1)
+    const f = (v) => v.toFixed(2)
+    const CO = '#f0a35e'; const CPp = '#d2a8ff'
+    return {
+      tex: `\\begin{aligned} a\\cdot b = b\\cdot a &= \\mathbf{${f(dotv)}} \\quad (\\theta=${ang.toFixed(0)}^{\\circ}) \\\\ \\textcolor{${CO}}{a\\!\\to\\! b}:\\ & \\underbrace{${f(pAB)}}_{\\text{投影}}\\,\\times\\,\\underbrace{${f(lb)}}_{|b|} = \\mathbf{${f(pAB * lb)}} \\\\ \\textcolor{${CPp}}{b\\!\\to\\! a}:\\ & \\underbrace{${f(pBA)}}_{\\text{投影}}\\,\\times\\,\\underbrace{${f(la)}}_{|a|} = \\mathbf{${f(pBA * la)}} \\end{aligned}`,
+      note: '两条投影长度不同(橙 ≠ 紫),但「投影 × 另一向量长度」相等 → 点积可交换',
+    }
+  })()
+
   // ── 门控直觉图:把 b 当一排「阀门」,看每维信号被放行多少 ──
   const SIG = [1.0, 1.0, 1.0, 1.0] // 各维入口信号(都设 1,让阀门效果最直观)
   const gateName = (g) => (g === 0 ? '关闭' : g < 1 ? '半开' : g === 1 ? '全开' : '放大')
@@ -96,6 +111,8 @@ export default function P2Ops({ prev, next }) {
     return color ? `\\textcolor{${color}}{${inner}}` : inner
   }
   const tc = (c, s) => `\\textcolor{${c}}{${s}}`
+  const par = (v) => (v < 0 ? `(${num(v)})` : num(v)) // 负数加括号,避免 ·-1.5
+  const plus = (xStr, y) => (y < 0 ? `${xStr} - ${num(Math.abs(y))}` : `${xStr} + ${num(y)}`) // 带符号相加
   // a_i 行项:coef · a_i,带正确正负号(用于第二项拼接)
   const signTerm = (coef, aval) => {
     const op2 = coef < 0 ? '-' : '+'
@@ -105,7 +122,7 @@ export default function P2Ops({ prev, next }) {
     if (op === 'add') {
       const s = [a[0] + b[0], a[1] + b[1]]
       return {
-        tex: `\\begin{aligned} ${tc(CA, 'a')}+${tc(CB, 'b')} &= ${vec(a[0], a[1], CA)} + ${vec(b[0], b[1], CB)} \\\\ &= \\begin{bmatrix} ${num(a[0])}\\!+\\!${num(b[0])} \\\\ ${num(a[1])}\\!+\\!${num(b[1])} \\end{bmatrix} = ${vec(s[0], s[1], CR)} \\end{aligned}`,
+        tex: `\\begin{aligned} ${tc(CA, 'a')}+${tc(CB, 'b')} &= ${vec(a[0], a[1], CA)} + ${vec(b[0], b[1], CB)} \\\\ &= \\begin{bmatrix} ${plus(num(a[0]), b[0])} \\\\ ${plus(num(a[1]), b[1])} \\end{bmatrix} = ${vec(s[0], s[1], CR)} \\end{aligned}`,
         note: '对应维度各自相加,结果还是个向量(平移 / 合成)',
       }
     }
@@ -118,8 +135,10 @@ export default function P2Ops({ prev, next }) {
     }
     if (op === 'dot') {
       const p0 = a[0] * b[0]; const p1 = a[1] * b[1]; const d = p0 + p1
+      const prod0 = `${tc(CA, num(a[0]))}\\cdot${tc(CB, par(b[0]))}`
+      const prod1 = `${tc(CA, num(a[1]))}\\cdot${tc(CB, par(b[1]))}`
       return {
-        tex: `\\begin{aligned} ${tc(CA, 'a')}\\cdot${tc(CB, 'b')} &= ${tc(CA, num(a[0]))}\\cdot${tc(CB, num(b[0]))} + ${tc(CA, num(a[1]))}\\cdot${tc(CB, num(b[1]))} \\\\ &= ${num(p0)} + ${num(p1)} = ${tc(CR, num(d))}\\ \\ (\\text{scalar}) \\end{aligned}`,
+        tex: `\\begin{aligned} ${tc(CA, 'a')}\\cdot${tc(CB, 'b')} &= ${prod0} + ${prod1} \\\\ &= ${plus(num(p0), p1)} = ${tc(CR, num(d))}\\ \\ (\\text{scalar}) \\end{aligned}`,
         note: '逐维相乘再相加 → 一个标量,衡量两者多对齐(注意力打分 q·k 就是它)',
       }
     }
@@ -139,7 +158,7 @@ export default function P2Ops({ prev, next }) {
     }
     const h = [a[0] * b[0], a[1] * b[1]]
     return {
-      tex: `${tc(CA, 'a')}\\odot${tc(CB, 'b')} = \\begin{bmatrix} ${tc(CA, num(a[0]))}\\cdot${tc(CB, num(b[0]))} \\\\ ${tc(CA, num(a[1]))}\\cdot${tc(CB, num(b[1]))} \\end{bmatrix} = ${vec(h[0], h[1], CR)}`,
+      tex: `${tc(CA, 'a')}\\odot${tc(CB, 'b')} = \\begin{bmatrix} ${tc(CA, num(a[0]))}\\cdot${tc(CB, par(b[0]))} \\\\ ${tc(CA, num(a[1]))}\\cdot${tc(CB, par(b[1]))} \\end{bmatrix} = ${vec(h[0], h[1], CR)}`,
       note: 'b 的每个分量是该维的「阀门」:逐维相乘、不求和 → 还是向量',
     }
   })()
@@ -181,7 +200,6 @@ export default function P2Ops({ prev, next }) {
       const bb = b[0] * b[0] + b[1] * b[1]
       const aa = a[0] * a[0] + a[1] * a[1]
       const dotv = a[0] * b[0] + a[1] * b[1]
-      const la = Math.sqrt(aa); const lb = Math.sqrt(bb)
       const CP = '#d2a8ff' // 紫:b 投影到 a
       // a 投影到 b(沿 b 方向)
       const footAB = [b[0] * (dotv / (bb || 1)), b[1] * (dotv / (bb || 1))]
@@ -201,18 +219,7 @@ export default function P2Ops({ prev, next }) {
       }
       els.push(<text key="la" x={Pa[0] + 6} y={Pa[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
       els.push(<text key="lb" x={Pb[0] + 6} y={Pb[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent2}>b</text>)
-      const cos = dotv / (la * lb || 1)
-      const ang = (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI
-      const pAB = dotv / (lb || 1) // a 在 b 方向上的投影长度
-      const pBA = dotv / (la || 1) // b 在 a 方向上的投影长度
-      els.push(<text key="dv" x={30} y={cy + R * unit + 20} fontFamily={T.font} fontSize={12} fill={T.c.text}>
-        a·b = b·a = <tspan fill={T.c.warn} fontWeight="bold">{dotv.toFixed(2)}</tspan>(夹角 {ang.toFixed(0)}°)</text>)
-      els.push(<text key="dv2" x={30} y={cy + R * unit + 37} fontFamily={T.font} fontSize={10.5} fill={T.c.warn}>
-        橙:a→b 投影 {pAB.toFixed(2)} × |b|={lb.toFixed(2)} = {(pAB * lb).toFixed(2)}</text>)
-      els.push(<text key="dv3" x={30} y={cy + R * unit + 52} fontFamily={T.font} fontSize={10.5} fill={CP}>
-        紫:b→a 投影 {pBA.toFixed(2)} × |a|={la.toFixed(2)} = {(pBA * la).toFixed(2)}</text>)
-      els.push(<text key="dv4" x={30} y={cy + R * unit + 67} fontFamily={T.font} fontSize={10} fill={T.c.dim}>
-        两条投影长度不同,但「投影 × 另一向量长度」相等 → 点积可交换</text>)
+      // 橙=a→b 投影、紫=b→a 投影,数值分解放到下方 LaTeX 面板(dotInfo)
     } else if (op === 'matmul') {
       const r = (th * Math.PI) / 180
       const c0 = [s * Math.cos(r), s * Math.sin(r)] // M 第 1 列 = e0 的落点
@@ -258,7 +265,7 @@ export default function P2Ops({ prev, next }) {
     // 顶部说明
     els.push(<text key="cap" x={30} y={16} fontFamily={T.font} fontSize={11} fill={T.c.accent}>{cur.cap}</text>)
     const W = cx + R * unit + 130
-    const H = cy + R * unit + (op === 'dot' ? 78 : 46)
+    const H = cy + R * unit + 46
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
@@ -343,6 +350,14 @@ export default function P2Ops({ prev, next }) {
           <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{formula.tex}</Tex></div>
           <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>{formula.note}</div>
         </div>
+
+        {op === 'dot' && (
+          <div style={{ marginTop: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>投影分解 &amp; 交换律(<span style={{ color: '#f0a35e' }}>橙 a→b</span> / <span style={{ color: '#d2a8ff' }}>紫 b→a</span>,随滑块实时变)</div>
+            <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{dotInfo.tex}</Tex></div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>{dotInfo.note}</div>
+          </div>
+        )}
 
         {op === 'hadamard' && (
           <div style={{ marginTop: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
