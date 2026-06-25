@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import { MOE } from '../data/toy.js'
 import { route, expertLoad } from '../lib/moe.js'
 
@@ -15,7 +16,7 @@ export default function Ch12MoE({ prev, next }) {
   const maxProb = Math.max(...probs)
 
   return (
-    <ChapterLayout kicker="第 12 章 · MoE · DeepSeek-V2(DeepSeekMoE)" title="MoE 混合专家" prev={prev} next={next}>
+    <ChapterLayout kicker="第 12 章 · MoE · DeepSeekMoE(V2)→ V3" title="MoE 混合专家" prev={prev} next={next}>
       <>
         <p>
           普通 Transformer 里,每个 token 都过<b>同一个</b>大前馈网络。
@@ -26,18 +27,22 @@ export default function Ch12MoE({ prev, next }) {
           这样总参数量可以很大(知识多),但每个 token 实际计算量很小(<b>稀疏激活</b>)——
           这正是 DeepSeek 能把模型做得又大又快的关键之一。
         </p>
-        <h2>DeepSeek 的两个改进</h2>
+        <h2>DeepSeek 的 MoE 改进</h2>
         <ul>
-          <li><b>细粒度专家</b>:把专家切得更小更多,组合更灵活</li>
-          <li><b>共享专家</b>:留一两个所有 token 都过的专家,负责通用知识,
+          <li><b>细粒度专家</b>(DeepSeekMoE / V2):把专家切得更小更多,组合更灵活</li>
+          <li><b>共享专家</b>(DeepSeekMoE / V2):留一两个所有 token 都过的专家,负责通用知识,
             其余路由专家专攻细分</li>
-          <li><b>无辅助损失的负载均衡</b>:让各专家被均匀使用,不浪费,
-            且不像老办法那样损害效果</li>
+          <li><b>无辅助损失的负载均衡</b>(<b>V3 才引入</b>):让各专家被均匀使用,
+            且不像 V2 的多重辅助损失那样损害效果。<span style={{ color: 'var(--text-dim)' }}>
+            注:V2 用的是带辅助损失的均衡(expert/device/communication loss),
+            无辅助损失方案由 Wang et al. 2024 提出、DeepSeek-V3 采用。</span></li>
         </ul>
         <p>右边点不同 token,看门控把它路由给了哪些专家;下方是所有 token 的专家负载。</p>
         <div className="note">
-          右边深色高亮 = 被选中的 top-{topK} 路由专家。最后一个"通才"专家在演示里近似<b>共享专家</b>的角色。
+          右边深色高亮 = 被选中的 top-{topK} 路由专家。最后一个"通才"专家在演示里<b>简化近似</b>共享专家——
+          注意真实共享专家<b>不经过门控打分、对每个 token 恒定激活</b>,不参与 top-k 竞争,与这里参与竞争的普通专家本质不同。
         </div>
+        <Refs ids={['1701.06538', '2401.06066', '2405.04434', '2408.15664', '2412.19437']} />
       </>
       <>
         <h3>选一个 token</h3>

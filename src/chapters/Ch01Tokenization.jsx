@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import { tokenize } from '../lib/tokenizer.js'
 
 export default function Ch01Tokenization({ prev, next }) {
@@ -15,16 +16,21 @@ export default function Ch01Tokenization({ prev, next }) {
         </p>
         <p>
           这样做是为了平衡:词表太大(每个词一个 token)装不下,字符级又太细、序列太长。
-          子词是折中。真实模型用 <b>BPE</b> 等算法从海量语料里"学"出一份子词词表。
+          子词是折中。真实模型用 <b>BPE / WordPiece / Unigram</b> 等算法从海量语料里"学"出一份子词词表
+          (DeepSeek 用<b>字节级 BPE</b>)。
         </p>
         <h2>试试看</h2>
         <p>
           在右边输入框改文字。词表里收录的词会整体保留;没收录的词(比如 <code>networking</code>)
-          会被贪心地切成已知子词,<code>##</code> 表示"接在前一片后面"。
+          会被切成已知子词,<code>##</code> 表示"接在前一片后面"。
         </p>
         <div className="note">
-          这里用的是一份很小的玩具词表,只为演示原理。真实 DeepSeek 词表有 10 万+ token。
+          严格说:本演示用的是 <b>WordPiece 式</b>切法(<code>##</code> 续接前缀 + 贪心最长匹配),
+          这是 BERT 的机制。<b>真实 BPE 不用 <code>##</code></b>,也不是贪心最长匹配,而是按训练学到的
+          <b>合并规则</b>逐步把字符合并成子词。这里用一份很小的玩具词表只为演示"整词/子词"原理;
+          真实 DeepSeek 词表约 12.8 万 token。
         </div>
+        <Refs ids={['1508.07909', '1609.08144', '1804.10959', '1810.04805', '2412.19437']} />
       </>
       <>
         <h3>分词器</h3>

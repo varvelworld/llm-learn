@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import Slider from '../components/Slider.jsx'
 import MatMul from '../components/svg/MatMul.jsx'
 import Matrix from '../components/svg/Matrix.jsx'
@@ -241,6 +242,7 @@ export default function Ch04Attention({ prev, next }) {
           看到这块开销,就懂了 DeepSeek <b>MLA</b> 的动机:把 K、V 压成一个低秩"潜向量"再缓存,
           KV 显存直接砍掉约 93%。这是第 11 章的主角。
         </div>
+        <Refs ids={['1706.03762', '2005.14165', '2405.04434']} />
       </>
       <>
         <h3>计算流水线(从左到右)</h3>

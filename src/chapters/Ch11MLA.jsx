@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import MatMul from '../components/svg/MatMul.jsx'
 import Edge from '../components/svg/Edge.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
@@ -120,6 +121,7 @@ export default function Ch11MLA({ prev, next }) {
           → 省 <b>{saving}%</b>。真实 DeepSeek 的潜向量维度相对很小,KV 缓存压缩约
           <b>93%(≈ 1/14)</b>。
         </p>
+        <Refs ids={['2405.04434', '2412.19437']} />
       </>
       <>
         <FigureBoard renderSvg={renderSvg} baseCell={26} fullCell={44}

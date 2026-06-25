@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import ProbBars from '../components/ProbBars.jsx'
 import Slider from '../components/Slider.jsx'
 import { SAMPLING } from '../data/toy.js'
@@ -36,8 +37,12 @@ export default function Ch10Sampling({ prev, next }) {
           (还有个常用的 top-p / nucleus,按累计概率截断,这里先用 top-k 演示。)
         </p>
         <div className="note">
-          温度=0 基本等于"永远选最高分"(贪心)。聊天模型通常用 0.3~1.0。
+          温度<b>趋近 0</b>(工程上钳到极小正数)等价于"永远选最高分"的<b>贪心 argmax</b>;
+          注意 T=0 本身会让 logits/T 除零、无定义,实现里靠 argmax 分支或下钳处理。
+          温度具体取多少随模型/任务而定(各厂 API 默认多为 1.0,范围常开放到 0~2),
+          实践中聊天常用较低温度以兼顾连贯与多样。
         </div>
+        <Refs ids={['1503.02531', '1904.09751', '1805.04833']} />
       </>
       <>
         <h3>采样控制</h3>

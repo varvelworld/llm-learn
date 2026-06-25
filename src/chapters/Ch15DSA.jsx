@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
+import Refs from '../components/Refs.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
 import { seededMatrix } from '../lib/synth.js'
@@ -348,7 +349,9 @@ export default function Ch15DSA({ prev, next }) {
         <ul>
           <li>① <b>闪电索引器</b>:给每个 key 打一个<b>近似相关分</b>,但只用<b>极低的维度 d_idx</b>
             (≪ 注意力维度)。这里 toy 把它建成「<b>只在前 d_idx 个维度上做点积</b>」——完整打分的低维近似,
-            便宜在维度小、还能用低精度跑。真实 DSA 里它是个被<b>专门训练</b>去模仿完整注意力的小网络。</li>
+            便宜在维度小、还能用低精度跑。<b>真实公式更复杂</b>:是<b>多头 ReLU 门控的加权点积</b>
+            <code>I = Σ_h w_h·ReLU(q_h·k_h)</code>,且是被<b>专门蒸馏训练</b>去模仿完整注意力分布的小模块
+            (复用 MLA 表示)。</li>
           <li>② <b>选 top-k</b>:只挑分最高的 k 个 key。</li>
           <li>③ <b>精算注意力</b>:只对这 k 个 key 做<b>完整</b>的 q·Kᵀ→softmax→·V(右下链路)。
             注意 softmax 在<b>选中子集内重新归一化</b>。</li>
@@ -374,6 +377,7 @@ export default function Ch15DSA({ prev, next }) {
           <b>V4 不直接用它</b>,而是把同一思想搬到<b>压缩块</b>上,并补一条滑动窗口 —— 这就是下一章的
           <b> CSA</b>(闪电索引器沿用,打分对象从 token 变成压缩块)。
         </div>
+        <Refs ids={['2512.02556', '2606.19348', '1706.03762']} />
       </>
       <>
         <FigureBoard renderSvg={renderIndexer} baseCell={34} fullCell={50}

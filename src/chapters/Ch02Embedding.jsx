@@ -1,4 +1,5 @@
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import Heatmap from '../components/Heatmap.jsx'
 import { SENTENCE, EMBEDDINGS } from '../data/toy.js'
 import { dot, norm } from '../lib/tensor.js'
@@ -61,6 +62,7 @@ export default function Ch02Embedding({ prev, next }) {
           颜色:<span style={{ color: 'var(--hot)' }}>红=正、大</span> ·
           <span style={{ color: 'var(--accent)' }}> 蓝=负、小</span>。下面每张表都用这套配色。
         </div>
+        <Refs ids={['1301.3781', '1810.04805', '2005.14165', '2412.19437', '2405.04434']} />
       </>
       <>
         <h3>嵌入向量 (5 token × 4 维)</h3>

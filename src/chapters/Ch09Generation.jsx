@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import Matrix from '../components/svg/Matrix.jsx'
 import MatMul from '../components/svg/MatMul.jsx'
 import Edge from '../components/svg/Edge.jsx'
@@ -197,6 +198,7 @@ export default function Ch09Generation({ prev, next }) {
           <b>这就引出了开销:</b>KV 缓存随序列<b>线性增长</b>,长上下文下吃显存;而 decode 每步都要把整个
           缓存读一遍 → <b>带宽瓶颈</b>。第 11 章 MLA、V4 的稀疏注意力,省的都是这块。
         </div>
+        <Refs ids={['1706.03762', '2211.05102', '1911.02150', '2405.04434']} />
       </>
       <>
         {view3d ? (

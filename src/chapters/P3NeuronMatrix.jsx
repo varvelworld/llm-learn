@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import Tex from '../components/Tex.jsx'
 import MatMul from '../components/svg/MatMul.jsx'
@@ -218,6 +219,7 @@ export default function P3NeuronMatrix({ prev, next }) {
           全是这种「矩阵乘 + (可选)激活」的全连接层——所以矩阵乘法是整个模型的算力主体。
           (激活也常用 sigmoid / tanh / GELU / Swish,道理一样。)
         </div>
+        <Refs ids={['1706.03762', '2002.05202', '1710.05941', '2412.19437']} />
       </>
       <>
         <h3>图 1 · 一个神经元</h3>

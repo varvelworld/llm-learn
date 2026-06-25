@@ -1,0 +1,38 @@
+// 权威文献目录(经多 Agent 核对工作流查证)。章节用 <Refs ids={[...]} /> 按 arXiv 号引用。
+// 极前沿的 DeepSeek-V3.2/V4 以官方技术报告/模型卡为准。
+export const PAPERS = {
+  '1706.03762': { t: 'Vaswani et al. 2017 · Attention Is All You Need(Transformer)' },
+  '1301.3781': { t: 'Mikolov et al. 2013 · Word2Vec' },
+  '1508.07909': { t: 'Sennrich et al. 2016 · BPE 子词分词' },
+  '1609.08144': { t: 'Wu et al. 2016 · Google NMT(WordPiece)' },
+  '1804.10959': { t: 'Kudo 2018 · Subword Regularization(Unigram)' },
+  '1810.04805': { t: 'Devlin et al. 2018 · BERT' },
+  '1910.07467': { t: 'Zhang & Sennrich 2019 · RMSNorm' },
+  '2104.09864': { t: 'Su et al. 2021 · RoFormer(RoPE)' },
+  '2002.05202': { t: 'Shazeer 2020 · GLU Variants(SwiGLU)' },
+  '1710.05941': { t: 'Ramachandran et al. 2017 · Swish/SiLU' },
+  '1606.08415': { t: 'Hendrycks & Gimpel 2016 · GELU' },
+  '1512.03385': { t: 'He et al. 2015 · ResNet(残差连接)' },
+  '2002.04745': { t: 'Xiong et al. 2020 · On Layer Normalization(Pre-LN)' },
+  '2012.14913': { t: 'Geva et al. 2020 · FFN 是键值记忆' },
+  '1701.06538': { t: 'Shazeer et al. 2017 · Sparsely-Gated MoE' },
+  '1608.05859': { t: 'Press & Wolf 2017 · 权重绑定(输出嵌入)' },
+  '2211.05102': { t: 'Pope et al. 2022 · 高效 Transformer 推理(KV 缓存)' },
+  '1911.02150': { t: 'Shazeer 2019 · Multi-Query Attention' },
+  '1503.02531': { t: 'Hinton et al. 2015 · 知识蒸馏(温度)' },
+  '1904.09751': { t: 'Holtzman et al. 2019 · Nucleus 采样(top-p)' },
+  '1805.04833': { t: 'Fan et al. 2018 · top-k 采样' },
+  '1904.10509': { t: 'Child et al. 2019 · Sparse Transformers' },
+  '2005.14165': { t: 'Brown et al. 2020 · GPT-3' },
+  '2302.13971': { t: 'Touvron et al. 2023 · LLaMA' },
+  '2307.09288': { t: 'Touvron et al. 2023 · LLaMA 2' },
+  '2401.06066': { t: 'DeepSeek-AI 2024 · DeepSeekMoE' },
+  '2405.04434': { t: 'DeepSeek-AI 2024 · DeepSeek-V2(MLA/MoE)' },
+  '2408.15664': { t: 'Wang et al. 2024 · 无辅助损失负载均衡' },
+  '2412.19437': { t: 'DeepSeek-AI 2024 · DeepSeek-V3 技术报告' },
+  '2501.12948': { t: 'DeepSeek-AI 2025 · DeepSeek-R1' },
+  '2512.02556': { t: 'DeepSeek-AI 2025 · DeepSeek-V3.2-Exp 技术报告(DSA)' },
+  '2606.19348': { t: 'DeepSeek-AI 2026 · DeepSeek-V4 技术报告(CSA/HCA)' },
+}
+
+export const arxivUrl = (id) => `https://arxiv.org/abs/${id}`

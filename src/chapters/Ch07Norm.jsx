@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
@@ -297,6 +298,7 @@ export default function Ch07Norm({ prev, next }) {
           铺垫 Ch17:V4 的 <b>mHC</b> 就是把这条"<b>单条</b>残差流"扩成<b>多路通道</b>再混合——
           先懂残差流,mHC 才看得懂。
         </div>
+        <Refs ids={['1910.07467', '1512.03385', '2002.04745', '1706.03762', '2104.09864']} />
       </>
       <>
         <h3>一个 Transformer Block:残差流怎么接到注意力</h3>

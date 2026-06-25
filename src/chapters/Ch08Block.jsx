@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
+import Refs from '../components/Refs.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
 import { seededMatrix } from '../lib/synth.js'
@@ -222,13 +223,14 @@ export default function Ch08Block({ prev, next }) {
           h 和谁越对齐,谁分越高。再 softmax 成概率(采样见 Ch10)。
         </p>
         <div className="note">
-          真实词表 <b>V 一般 3 万 ~ 26 万</b>(LLaMA2 3.2 万、GPT 5 万、
+          真实词表 <b>V 一般 3 万 ~ 26 万</b>(LLaMA2 3.2 万、GPT-2/3 约 5 万、GPT-4 约 10 万、
           <b>DeepSeek-V3 ≈ 12.8 万</b>、Gemma 26 万);本页 toy 只用 <b>V={VOCAB.length}</b>。
           词表越大,一句话拆得越少(更省),但 W_U(V×d)越大——DeepSeek-V3 光输出头就约 <b>9 亿参数</b>。
         </div>
         <div className="note" style={{ marginTop: 8 }}>
-          常见的<b>权重绑定</b>:W_U 就是 Ch02 <b>嵌入矩阵的转置</b>——
-          嵌入把「词→向量」,输出头把「向量→各词分数」,同一张表正反用,省一半参数。
+          <b>权重绑定</b>(weight tying):让 W_U = Ch02 <b>嵌入矩阵的转置</b>,同一张表正反用,省一份 V×d 参数。
+          这是 <b>GPT-2/BERT 等早期/小模型</b>的常见做法;但很多大模型(含 <b>DeepSeek-V3</b>、Llama 3)<b>不绑定</b>
+          (<code>tie_word_embeddings=false</code>)——这正是 V3 的输出头能<b>单独</b>有约 9 亿参数的原因。
         </div>
         <div className="note" style={{ marginTop: 8 }}>
           为什么"同一结构重复"如此强大:每层都能在残差流上<b>加一笔精炼</b>,
@@ -239,6 +241,7 @@ export default function Ch08Block({ prev, next }) {
           <b>FFN 子块</b>换成 <b>MoE</b>(12 章),V4 再把注意力换成 <b>CSA/HCA</b>(16 章)——
           <b>Block 的骨架不变,只换两个子块的内部实现</b>。
         </div>
+        <Refs ids={['1706.03762', '2002.04745', '1608.05859', '2412.19437', '2606.19348']} />
       </>
       <>
         <h3>一个 Block 的接线:残差流穿过两个子块(聚焦「{tokens[fi]}」)</h3>

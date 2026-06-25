@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import Tex from '../components/Tex.jsx'
 import { T } from '../components/svg/theme.js'
@@ -337,6 +338,7 @@ export default function P2Ops({ prev, next }) {
           切换右边的运算、拖动 a/b,看同样两个向量在不同运算下去了哪里。
           这五个动作几乎拼出了整个 Transformer:<b>投影(矩阵乘)→ 打分(点积)→ 汇总(加权=数乘+加法)→ 残差(加法)→ 门控(逐元素乘)</b>。
         </div>
+        <Refs ids={['1706.03762', '1910.07467', '2002.05202']} />
       </>
       <>
         <h3>五种运算 · 同两个向量,不同去向</h3>

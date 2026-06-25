@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
+import Refs from '../components/Refs.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
 import { seededMatrix } from '../lib/synth.js'
@@ -221,13 +222,15 @@ export default function Ch00Overview({ prev, next }) {
             <tr><td>V3(2024 底)</td><td>沿用 MLA/MoE,+ 无辅助损失负载均衡、+ <b>MTP</b>(多 token 预测)</td></tr>
             <tr><td>R1(2025)</td><td>基于 V3 的推理模型(主要是训练方法,架构沿用)</td></tr>
             <tr><td>V3.2-Exp(2025 底)</td><td>+ <b>DSA 稀疏注意力</b>:闪电索引器先选 top-k 相关块,再只对这些算注意力</td></tr>
-            <tr><td>V4(2026.4)*</td><td><b>混合稀疏注意力 CSA+HCA</b>(细粒度局部 + 廉价全局两级压缩)、<b>mHC 流形超连接</b>(替代残差)、<b>Engram 记忆</b>;1.6T 参数 / 1M 上下文</td></tr>
+            <tr><td>V4(2026.4)*</td><td><b>混合稀疏注意力 CSA+HCA</b>(交替的压缩稀疏注意力层)、<b>mHC 流形超连接</b>(扩展/强化残差流,非替代);1.6T 总参 / 1M 上下文</td></tr>
           </tbody>
         </table>
         <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-          * V4 2026 年 4 月发布,部分架构细节来自公开/第三方分析。脉络:<b>MLA·MoE 是 V2 地基,
-          MTP 是 V3,稀疏注意力 V3.2 起、到 V4 集大成</b>——所以第二部分按版本分组,V4 单独铺开讲。
+          * 据 DeepSeek-V4 官方技术报告与模型卡。脉络:<b>MLA·MoE 是 V2 地基,
+          MTP 是 V3,稀疏注意力(DSA)V3.2 起、到 V4 的 CSA+HCA 集大成</b>——所以第二部分按版本分组,V4 单独铺开讲。
+          (<b>Engram</b> 是 DeepSeek 一项独立的稀疏记忆研究,官方报告/模型卡<b>未确认其纳入正式 V4</b>,故不列入上表。)
         </p>
+        <Refs ids={['2405.04434', '2412.19437', '2501.12948', '2512.02556', '2606.19348']} />
       </>
       <>
         <h3>前向流水线(真实 toy 计算)</h3>

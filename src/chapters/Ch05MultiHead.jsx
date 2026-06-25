@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
@@ -175,6 +176,7 @@ export default function Ch05MultiHead({ prev, next }) {
           接线归位:整个「多头注意力」就是上一章 <code>x ← x + 注意力(RMSNorm(x))</code> 里的那个
           <b>「注意力(·)」子层</b>;它内部其实是 H 个头并行 + 拼接 + W_O。
         </div>
+        <Refs ids={['1706.03762']} />
       </>
       <>
         <h3>H 个头各自的注意力(并行独立)</h3>

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import { T } from '../components/svg/theme.js'
 import { freqs, rot2 } from '../lib/rope.js'
@@ -276,6 +277,7 @@ export default function Ch03Rope({ prev, next }) {
           两者打架,DeepSeek 的解法是<b>把 q/k 拆成「带 RoPE」和「不带 RoPE」两部分</b>。
           所以这一章是读懂 MLA 的前置。
         </div>
+        <Refs ids={['2104.09864', '1706.03762', '2405.04434']} />
       </>
       <>
         <h3>图 1 · 注入位置:加法(平移)vs 旋转(RoPE)</h3>

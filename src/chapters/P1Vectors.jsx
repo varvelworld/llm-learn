@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
@@ -169,6 +170,7 @@ export default function P1Vectors({ prev, next }) {
           记住两套话:「<b>n×d 矩阵</b>」≈「<b>n 个 d 维向量摞起来</b>」。
           下一节会讲矩阵的另一重身份——它还能当<b>变换</b>(把向量搬到新位置),那正是 Q/K/V 投影和 FFN 在做的事。
         </div>
+        <Refs ids={['1706.03762', '2302.13971']} />
       </>
       <>
         <h3>图 1 · 向量 = 数字 = 箭头</h3>

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
@@ -183,6 +184,7 @@ export default function Ch06FFN({ prev, next }) {
           接 Ch12:<b>MoE</b> 就是把这个 FFN 复制成很多个"专家",每个 token 只路由到少数几个——
           FFN 是 MoE 的<b>单专家原型</b>。
         </div>
+        <Refs ids={['1706.03762', '2002.05202', '1710.05941', '2012.14913', '1701.06538']} />
       </>
       <>
         <h3>SwiGLU:一个 token 的前向(门 ⊙ 值 → 降维)</h3>

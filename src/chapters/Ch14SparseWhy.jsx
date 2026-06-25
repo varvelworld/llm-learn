@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
+import Refs from '../components/Refs.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
 import { seededMatrix } from '../lib/synth.js'
@@ -231,7 +232,7 @@ export default function Ch14SparseWhy({ prev, next }) {
 
   return (
     <ChapterLayout
-      kicker="第 14 章 · 为什么要稀疏注意力 · DeepSeek-V4 长上下文"
+      kicker="第 14 章 · 为什么要稀疏注意力 · DeepSeek-V3.2/V4 长上下文"
       title="为什么要稀疏注意力"
       prev={prev}
       next={next}
@@ -271,10 +272,12 @@ export default function Ch14SparseWhy({ prev, next }) {
           k 固定时,这是<b>近似线性</b>的。
         </p>
         <div className="note">
-          这正是 DeepSeek-V4 稀疏注意力(DSA)的核心动机。难点在于:
-          <b>怎么在不先算出全部分数的前提下,快速猜到哪几个 key 最相关?</b>
+          这正是稀疏注意力的核心动机——<b>DSA(DeepSeek Sparse Attention)由 DeepSeek-V3.2-Exp 首次引入</b>,
+          V4 继续沿用并叠加更多压缩(下一章细讲;top-2048、128K 等具体数字属 V3.2 语境,V4 默认 1M 上下文)。
+          难点在于:<b>怎么在不先算出全部分数的前提下,快速猜到哪几个 key 最相关?</b>
           下一章的<b>闪电索引器</b>就是干这个的。
         </div>
+        <Refs ids={['1706.03762', '1904.10509', '2512.02556', '2606.19348']} />
       </>
       <>
         <FigureBoard renderSvg={renderSvg} baseCell={30} fullCell={48}

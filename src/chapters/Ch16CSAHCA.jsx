@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
+import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import { T } from '../components/svg/theme.js'
 import { colorFor } from '../lib/figure.js'
@@ -307,6 +308,7 @@ export default function Ch16CSAHCA({ prev, next }) {
           和 <b>MLA</b> 正交:MLA 压每个条目的<b>维度</b>,CSA/HCA 压<b>条目数</b>,可叠加。
           (toy 用均值池化近似;真实 CSA 用两条重叠流 + softmax 门控混合,避免「坏切分」边界问题。)
         </div>
+        <Refs ids={['2512.02556', '2606.19348', '2405.04434', '1706.03762']} />
       </>
       <>
         <h3>V4 注意力:CSA / HCA 逐层交替</h3>
