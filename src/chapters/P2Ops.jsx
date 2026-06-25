@@ -41,8 +41,51 @@ export default function P2Ops({ prev, next }) {
   const [k, setK] = useState(1.5)
   const [th, setTh] = useState(50) // 度
   const [s, setS] = useState(1.2)
+  const [gates, setGates] = useState([1, 0.5, 0, 1.5]) // 门控图:每维一个阀门
 
   const cur = OPS.find((o) => o.k === op)
+
+  // ── 门控直觉图:把 b 当一排「阀门」,看每维信号被放行多少 ──
+  const SIG = [1.0, 1.0, 1.0, 1.0] // 各维入口信号(都设 1,让阀门效果最直观)
+  const gateName = (g) => (g === 0 ? '关闭' : g < 1 ? '半开' : g === 1 ? '全开' : '放大')
+  const renderGate = () => {
+    const rowH = 50
+    const top = 30
+    const inX = 64; const inW = 70 // 信号条
+    const gX = 168; const gW = 46; const gH = 36 // 阀门框
+    const outX = 250; const outW = 70 // 输出条
+    const W = 400
+    const H = top + gates.length * rowH + 10
+    const els = []
+    els.push(<text key="h1" x={inX} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent}>信号 a</text>)
+    els.push(<text key="h2" x={gX + gW / 2} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>阀门 b</text>)
+    els.push(<text key="h3" x={outX + outW / 2} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.warn}>输出 a·b</text>)
+    gates.forEach((g, i) => {
+      const cyc = top + i * rowH + rowH / 2
+      els.push(<text key={`dl${i}`} x={14} y={cyc + 4} fontFamily={T.font} fontSize={11} fill={T.c.dim}>维{i}</text>)
+      // 入口信号条
+      els.push(<rect key={`inbg${i}`} x={inX} y={cyc - 7} width={inW} height={14} rx={3} fill={T.c.bgElev} stroke={T.c.border} />)
+      els.push(<rect key={`in${i}`} x={inX} y={cyc - 7} width={inW * SIG[i]} height={14} rx={3} fill={T.c.accent} opacity={0.75} />)
+      // → 阀门
+      els.push(<path key={`a1${i}`} d={`M${inX + inW + 4},${cyc} l10,0 m-4,-3 l4,3 l-4,3`} stroke={T.c.dim} strokeWidth={1.4} fill="none" />)
+      // 阀门框 + 上下挡板(开口 = clamp(g,0,1))
+      const open = Math.max(0, Math.min(1, g)) * gH
+      const oT = cyc - open / 2; const oB = cyc + open / 2
+      els.push(<rect key={`gf${i}`} x={gX} y={cyc - gH / 2} width={gW} height={gH} rx={3} fill="none" stroke={T.c.border} strokeWidth={1.2} />)
+      els.push(<rect key={`st${i}`} x={gX} y={cyc - gH / 2} width={gW} height={Math.max(0, oT - (cyc - gH / 2))} fill={T.c.dim} opacity={0.55} />)
+      els.push(<rect key={`sb${i}`} x={gX} y={oB} width={gW} height={Math.max(0, (cyc + gH / 2) - oB)} fill={T.c.dim} opacity={0.55} />)
+      if (open > 0) els.push(<rect key={`op${i}`} x={gX} y={oT} width={gW} height={open} fill={T.c.accent2} opacity={0.35} />)
+      els.push(<text key={`gv${i}`} x={gX + gW / 2} y={cyc + gH / 2 + 12} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{g}({gateName(g)})</text>)
+      // 阀门 → 输出
+      els.push(<path key={`a2${i}`} d={`M${gX + gW + 4},${cyc} l10,0 m-4,-3 l4,3 l-4,3`} stroke={T.c.dim} strokeWidth={1.4} fill="none" />)
+      // 输出条 = 信号 × 阀门
+      const ov = SIG[i] * g
+      els.push(<rect key={`outbg${i}`} x={outX} y={cyc - 7} width={outW} height={14} rx={3} fill={T.c.bgElev} stroke={T.c.border} />)
+      els.push(<rect key={`out${i}`} x={outX} y={cyc - 7} width={Math.min(outW * 1.4, outW * ov)} height={14} rx={3} fill={T.c.warn} opacity={0.85} />)
+      els.push(<text key={`ot${i}`} x={outX + outW + 8} y={cyc + 4} fontFamily={T.font} fontSize={10} fill={T.c.warn}>{ov.toFixed(2)}</text>)
+    })
+    return <svg width={W} height={H} style={{ display: 'block' }}>{els}</svg>
+  }
 
   // ── 当前运算的数值公式(LaTeX,与右图同步,颜色对应箭头) ──
   const CA = '#6ea8fe'; const CB = '#7ee787'; const CR = '#f0a35e'
@@ -272,6 +315,31 @@ export default function P2Ops({ prev, next }) {
           <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{formula.tex}</Tex></div>
           <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>{formula.note}</div>
         </div>
+
+        {op === 'hadamard' && (
+          <div style={{ marginTop: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>🚰 门控直觉:把 <b style={{ color: 'var(--accent2)' }}>b</b> 当一排「阀门」</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
+              每一维是一根独立的水管,信号 a 从左流入,阀门 b 决定<b>放行多少</b>:
+              关(×0)断流、半开(×0.5)减半、全开(×1)原样、放大(×1.5)加压。拖下面的阀门试试。
+            </div>
+            <div style={{ overflowX: 'auto' }}>{renderGate()}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+              {gates.map((g, i) => (
+                <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                  <span style={{ color: 'var(--text-dim)' }}>维{i}阀门</span>
+                  <input type="range" min={0} max={2} step={0.25} value={g}
+                    onChange={(e) => setGates(gates.map((x, j) => (j === i ? +e.target.value : x)))} style={{ width: 80 }} />
+                  <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent2)', width: 28 }}>{g}</b>
+                </label>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 8 }}>
+              这就是 SwiGLU 里的门控:一条支路算出「内容值」,另一条算出「每维该开多大的阀门」,两者逐元素相乘 —— 模型借此<b>动态决定每个特征放行多少</b>。
+            </div>
+          </div>
+        )}
+
         <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 10 }}>{cur.cap} &nbsp;·&nbsp; <b style={{ color: 'var(--accent2)' }}>{cur.llm}</b></p>
       </>
     </ChapterLayout>
