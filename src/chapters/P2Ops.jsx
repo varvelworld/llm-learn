@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
+import Tex from '../components/Tex.jsx'
 import { T } from '../components/svg/theme.js'
 
 function planeEls(cx, cy, unit, R) {
@@ -43,53 +44,58 @@ export default function P2Ops({ prev, next }) {
 
   const cur = OPS.find((o) => o.k === op)
 
-  // ── 当前运算的数值公式(与右图同步,颜色对应箭头) ──
+  // ── 当前运算的数值公式(LaTeX,与右图同步,颜色对应箭头) ──
+  const CA = '#6ea8fe'; const CB = '#7ee787'; const CR = '#f0a35e'
   const num = (v) => (Number.isInteger(v) ? `${v}` : v.toFixed(2))
-  const A = (s) => <span style={{ color: 'var(--accent)' }}>{s}</span>
-  const Bc = (s) => <span style={{ color: 'var(--accent2)' }}>{s}</span>
-  const Rc = (s) => <span style={{ color: 'var(--warn)' }}>{s}</span>
+  const vec = (x0, x1, color) => {
+    const inner = `\\begin{bmatrix} ${num(x0)} \\\\ ${num(x1)} \\end{bmatrix}`
+    return color ? `\\textcolor{${color}}{${inner}}` : inner
+  }
+  const tc = (c, s) => `\\textcolor{${c}}{${s}}`
+  // a_i 行项:coef · a_i,带正确正负号(用于第二项拼接)
+  const signTerm = (coef, aval) => {
+    const op2 = coef < 0 ? '-' : '+'
+    return ` ${op2} ${num(Math.abs(coef))}\\cdot${tc(CA, num(aval))}`
+  }
   const formula = (() => {
     if (op === 'add') {
       const s = [a[0] + b[0], a[1] + b[1]]
-      return [
-        <>{A('a')} + {Bc('b')} = {A(`[${num(a[0])}, ${num(a[1])}]`)} + {Bc(`[${num(b[0])}, ${num(b[1])}]`)}</>,
-        <>= [ {num(a[0])}+{num(b[0])} , {num(a[1])}+{num(b[1])} ] = {Rc(`[${num(s[0])}, ${num(s[1])}]`)}</>,
-        <span style={{ color: 'var(--text-dim)' }}>对应维度各自相加,结果还是个向量(平移)</span>,
-      ]
+      return {
+        tex: `\\begin{aligned} ${tc(CA, 'a')}+${tc(CB, 'b')} &= ${vec(a[0], a[1], CA)} + ${vec(b[0], b[1], CB)} \\\\ &= \\begin{bmatrix} ${num(a[0])}\\!+\\!${num(b[0])} \\\\ ${num(a[1])}\\!+\\!${num(b[1])} \\end{bmatrix} = ${vec(s[0], s[1], CR)} \\end{aligned}`,
+        note: '对应维度各自相加,结果还是个向量(平移 / 合成)',
+      }
     }
     if (op === 'scale') {
       const ka = [a[0] * k, a[1] * k]
-      return [
-        <>{Rc('k·a')} = {num(k)} · {A(`[${num(a[0])}, ${num(a[1])}]`)} = {Rc(`[${num(ka[0])}, ${num(ka[1])}]`)}</>,
-        <span style={{ color: 'var(--text-dim)' }}>每维同乘一个数:只改长度({k < 0 ? '且反向' : '方向不变'})</span>,
-      ]
+      return {
+        tex: `${tc(CR, 'k\\,a')} = ${num(k)}\\cdot${vec(a[0], a[1], CA)} = ${vec(ka[0], ka[1], CR)}`,
+        note: `每维同乘一个数:只改长度(${k < 0 ? 'k<0 还会反向' : '方向不变'})`,
+      }
     }
     if (op === 'dot') {
       const p0 = a[0] * b[0]; const p1 = a[1] * b[1]; const d = p0 + p1
-      return [
-        <>{A('a')} · {Bc('b')} = {A(num(a[0]))}·{Bc(num(b[0]))} + {A(num(a[1]))}·{Bc(num(b[1]))}</>,
-        <>= {num(p0)} + {num(p1)} = {Rc(num(d))} <span style={{ color: 'var(--text-dim)' }}>(一个标量,不是向量)</span></>,
-        <span style={{ color: 'var(--text-dim)' }}>逐维相乘<b>再相加</b> → 衡量两者多对齐(注意力打分就是它)</span>,
-      ]
+      return {
+        tex: `\\begin{aligned} ${tc(CA, 'a')}\\cdot${tc(CB, 'b')} &= ${tc(CA, num(a[0]))}\\cdot${tc(CB, num(b[0]))} + ${tc(CA, num(a[1]))}\\cdot${tc(CB, num(b[1]))} \\\\ &= ${num(p0)} + ${num(p1)} = ${tc(CR, num(d))}\\ \\ (\\text{scalar}) \\end{aligned}`,
+        note: '逐维相乘再相加 → 一个标量,衡量两者多对齐(注意力打分 q·k 就是它)',
+      }
     }
     if (op === 'matmul') {
       const r = (th * Math.PI) / 180
       const m00 = s * Math.cos(r); const m10 = s * Math.sin(r)
       const m01 = -s * Math.sin(r); const m11 = s * Math.cos(r)
       const Ma = [m00 * a[0] + m01 * a[1], m10 * a[0] + m11 * a[1]]
-      return [
-        <>M = [[{num(m00)}, {num(m01)}], [{num(m10)}, {num(m11)}]] <span style={{ color: 'var(--text-dim)' }}>(旋转{th}°·缩放{s})</span></>,
-        <>{Rc('M·a')} = [ {num(m00)}·{A(num(a[0]))} + {num(m01)}·{A(num(a[1]))} , {num(m10)}·{A(num(a[0]))} + {num(m11)}·{A(num(a[1]))} ]</>,
-        <>= {Rc(`[${num(Ma[0])}, ${num(Ma[1])}]`)} <span style={{ color: 'var(--text-dim)' }}>(每个分量 = M 一行 · a 的点积)</span></>,
-      ]
+      const row0 = `${num(m00)}\\cdot${tc(CA, num(a[0]))}${signTerm(m01, a[1])}`
+      const row1 = `${num(m10)}\\cdot${tc(CA, num(a[0]))}${signTerm(m11, a[1])}`
+      return {
+        tex: `\\begin{aligned} M &= \\begin{bmatrix} ${num(m00)} & ${num(m01)} \\\\ ${num(m10)} & ${num(m11)} \\end{bmatrix} \\\\ ${tc(CR, 'M')}${tc(CA, 'a')} &= \\begin{bmatrix} ${row0} \\\\ ${row1} \\end{bmatrix} = ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
+        note: `M = 旋转 ${th}° + 缩放 ${s}×;每个分量 = M 的一行 · a 的点积`,
+      }
     }
-    // hadamard
     const h = [a[0] * b[0], a[1] * b[1]]
-    return [
-      <>{A('a')} ⊙ {Bc('b')} = [ {A(num(a[0]))}·{Bc(num(b[0]))} , {A(num(a[1]))}·{Bc(num(b[1]))} ]</>,
-      <>= {Rc(`[${num(h[0])}, ${num(h[1])}]`)} <span style={{ color: 'var(--text-dim)' }}>(逐维相乘,<b>不求和</b> → 还是向量)</span></>,
-      <span style={{ color: 'var(--text-dim)' }}>b 的每个分量当作该维的「阀门」:>1 放大、{'<'}1 收小</span>,
-    ]
+    return {
+      tex: `${tc(CA, 'a')}\\odot${tc(CB, 'b')} = \\begin{bmatrix} ${tc(CA, num(a[0]))}\\cdot${tc(CB, num(b[0]))} \\\\ ${tc(CA, num(a[1]))}\\cdot${tc(CB, num(b[1]))} \\end{bmatrix} = ${vec(h[0], h[1], CR)}`,
+      note: 'b 的每个分量是该维的「阀门」:逐维相乘、不求和 → 还是向量',
+    }
   })()
 
   const render = (cell) => {
@@ -246,10 +252,11 @@ export default function P2Ops({ prev, next }) {
           蓝=a,绿=b,橙=运算结果。切换运算按钮,拖滑块实时看几何变化。
         </p>
         <FigureBoard renderSvg={render} baseCell={22} fullCell={34} controls={controls} />
-        <div style={{ marginTop: 10, fontFamily: 'var(--mono)', fontSize: 13, background: 'var(--bg)',
-          border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', lineHeight: 1.8 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4 }}>数值公式(随滑块实时变,对照右图箭头)</div>
-          {formula.map((line, i) => <div key={i}>{line}</div>)}
+        <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>数值公式(随滑块实时变,对照右图箭头)</div>
+          <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{formula.tex}</Tex></div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>{formula.note}</div>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 10 }}>{cur.cap} &nbsp;·&nbsp; <b style={{ color: 'var(--accent2)' }}>{cur.llm}</b></p>
       </>
