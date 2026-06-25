@@ -2,8 +2,11 @@ import { useState } from 'react'
 import ChapterLayout from '../components/ChapterLayout.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import Tex from '../components/Tex.jsx'
+import MatMul from '../components/svg/MatMul.jsx'
+import Matrix from '../components/svg/Matrix.jsx'
+import Edge from '../components/svg/Edge.jsx'
 import { T } from '../components/svg/theme.js'
-import { colorFor } from '../lib/figure.js'
+import { colorFor, matmulLayout } from '../lib/figure.js'
 import { seededMatrix } from '../lib/synth.js'
 import { dot } from '../lib/tensor.js'
 import { relu } from '../lib/ffn.js'
@@ -30,6 +33,7 @@ export default function P3NeuronMatrix({ prev, next }) {
   const a1 = relu(z1)
 
   // 一层
+  const WxOnly = WL.map((row) => dot(row, x)) // 不含偏置的 W·x
   const zL = WL.map((row, j) => dot(row, x) + BL[j])
   const aL = zL.map(relu)
 
@@ -123,6 +127,46 @@ export default function P3NeuronMatrix({ prev, next }) {
     return `\\begin{aligned} ${tc(col, `a_${sel}`)} &= \\mathrm{ReLU}\\big(\\underbrace{${tc(col, `W_{${sel},:}`)}\\cdot ${tc(CA, 'x')}}_{\\text{第${sel}行 · 输入}} + b_${sel}\\big) \\\\ &= \\mathrm{ReLU}(${s} ${plus('', BL[sel]).trim()}) = \\mathrm{ReLU}(${num(zL[sel])}) = ${tc(col, num(aL[sel]))} \\end{aligned}`
   })()
 
+  // ───────── 图 3:写成矩阵乘法 W·x + b → ReLU → a(自注意力同款交叉布局) ─────────
+  const renderMatrixForm = (cell) => {
+    const L = matmulLayout({ m: 4, k: 3, p: 1, cell, labelW: T.labelW, colLabelH: T.colLabelH, gap: T.gap })
+    const baseY = L.headerH
+    const midY = baseY + (4 * cell) / 2
+    const xCol = x.map((v) => [v])
+    const colData = [WxOnly, BL, zL, aL].map((arr) => arr.map((v) => [v]))
+    const EDGE = 40
+    const resRight = L.result.x + cell
+    const plusX = resRight + 14
+    const bX = plusX + 16
+    const eqX = bX + cell + 10
+    const zX = eqX + 16
+    const aLX = zX + cell + EDGE + 6
+    const colLabel = (cx, txt, color) => (
+      <text x={cx + cell / 2} y={baseY - 6} textAnchor="middle" fontFamily={T.font} fontSize={T.fsLabel} fill={color}>{txt}</text>
+    )
+    const svgW = aLX + cell + 70
+    const svgH = L.h + 20
+    return (
+      <svg width={svgW} height={svgH} style={{ display: 'block', minWidth: svgW }}>
+        <MatMul x={0} y={0} A={WL} Bt={xCol} result={colData[0]} cell={cell}
+          rowLabels={['a0', 'a1', 'a2', 'a3']} selRow={sel} showValues
+          aLabel="W (4×3)" bLabel="x" resultLabel="W·x" />
+        {/* + b */}
+        <text x={plusX} y={midY} textAnchor="middle" dominantBaseline="central" fontFamily={T.font} fontSize={15} fill={T.c.dim}>+</text>
+        <Matrix x={bX} y={baseY} data={colData[1]} cell={cell} highlightRow={sel} showValues vmax={1} />
+        {colLabel(bX, 'b', T.c.warn)}
+        {/* = z */}
+        <text x={eqX} y={midY} textAnchor="middle" dominantBaseline="central" fontFamily={T.font} fontSize={15} fill={T.c.dim}>=</text>
+        <Matrix x={zX} y={baseY} data={colData[2]} cell={cell} highlightRow={sel} showValues />
+        {colLabel(zX, 'z', T.c.accent)}
+        {/* ReLU → a */}
+        <Edge from={{ x: zX + cell, y: midY }} to={{ x: aLX, y: midY }} label={'ReLU'} />
+        <Matrix x={aLX} y={baseY} data={colData[3]} cell={cell} highlightRow={sel} showValues />
+        {colLabel(aLX, 'a 输出', T.c.accent2)}
+      </svg>
+    )
+  }
+
   const xSliders = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
       {x.map((xi, i) => (
@@ -203,6 +247,16 @@ export default function P3NeuronMatrix({ prev, next }) {
         </p>
         <FigureBoard renderSvg={renderLayer} baseCell={22} fullCell={34} controls={layerCtl} />
         {panel(layerTex, '选中神经元的输出 = (W 的那一行 · x + 偏置)过激活;4 个神经元一起 = 一次 Wx+b。')}
+
+        <h3 style={{ marginTop: 18 }}>图 3 · 写成矩阵乘法(自注意力同款布局)</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+          把<b>输入 x、输出 z/a 都摆成矩阵里的列向量</b>:W 立左、x 躺上、结果在右下——
+          这正是后面自注意力章节用的交叉布局。整层一步算完:<code>a = ReLU(W·x + b)</code>。
+        </p>
+        <FigureBoard renderSvg={renderMatrixForm} baseCell={24} fullCell={36} controls={layerCtl} />
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 8 }}>
+          结果列每个格子 = W 对应行与 x 的点积;再加偏置 b 得 z,过 ReLU 得输出 a。高亮行对应所选神经元。
+        </p>
       </>
     </ChapterLayout>
   )
