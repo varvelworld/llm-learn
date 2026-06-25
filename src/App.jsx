@@ -25,7 +25,7 @@ function Sidebar() {
     <nav className="sidebar">
       <div className="brand">
         可视化学习 LLM
-        <small>从零搭到 DeepSeek 架构</small>
+        <small>从零搭到前沿开源大模型(DeepSeek · GLM …)</small>
       </div>
 
       <div className="group-label">第 0 部分 · 预备知识(向量与矩阵)</div>
