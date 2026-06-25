@@ -86,8 +86,9 @@ export default function P2Ops({ prev, next }) {
       const Ma = [m00 * a[0] + m01 * a[1], m10 * a[0] + m11 * a[1]]
       const row0 = `${num(m00)}\\cdot${tc(CA, num(a[0]))}${signTerm(m01, a[1])}`
       const row1 = `${num(m10)}\\cdot${tc(CA, num(a[0]))}${signTerm(m11, a[1])}`
+      const Mmat = `\\begin{bmatrix} ${num(m00)} & ${num(m01)} \\\\ ${num(m10)} & ${num(m11)} \\end{bmatrix}`
       return {
-        tex: `\\begin{aligned} M &= \\begin{bmatrix} ${num(m00)} & ${num(m01)} \\\\ ${num(m10)} & ${num(m11)} \\end{bmatrix} \\\\ ${tc(CR, 'M')}${tc(CA, 'a')} &= \\begin{bmatrix} ${row0} \\\\ ${row1} \\end{bmatrix} = ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
+        tex: `\\begin{aligned} ${tc(CR, 'M')}\\,${tc(CA, 'a')} &= ${Mmat}\\,${vec(a[0], a[1], CA)} \\\\ &= \\begin{bmatrix} ${row0} \\\\ ${row1} \\end{bmatrix} = ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
         note: `M = 旋转 ${th}° + 缩放 ${s}×;每个分量 = M 的一行 · a 的点积`,
       }
     }
