@@ -174,12 +174,24 @@ export default function P2Ops({ prev, next }) {
     } else if (op === 'hadamard') {
       const h = [a[0] * b[0], a[1] * b[1]]
       const Ph = P(h[0], h[1])
+      const Pb = P(b[0], b[1])
+      // 每轴缩放:a 的分量(虚线落到坐标轴)→ h 的分量,差距 = ×b_i
+      const axA = P(a[0], 0); const axH = P(h[0], 0)
+      const ayA = P(0, a[1]); const ayH = P(0, h[1])
+      els.push(<line key="gxa" x1={Pa[0]} y1={Pa[1]} x2={axA[0]} y2={axA[1]} stroke={T.c.accent} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
+      els.push(<line key="gxh" x1={Ph[0]} y1={Ph[1]} x2={axH[0]} y2={axH[1]} stroke={T.c.warn} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
+      els.push(<line key="gya" x1={Pa[0]} y1={Pa[1]} x2={ayA[0]} y2={ayA[1]} stroke={T.c.accent} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
+      els.push(<line key="gyh" x1={Ph[0]} y1={Ph[1]} x2={ayH[0]} y2={ayH[1]} stroke={T.c.warn} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
+      els.push(<text key="sx" x={(axA[0] + axH[0]) / 2} y={cy + 14} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>维0 ×{b[0]}</text>)
+      els.push(<text key="sy" x={cx - 10} y={(ayA[1] + ayH[1]) / 2} textAnchor="end" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>维1 ×{b[1]}</text>)
+      els.push(arrow('b', ...O, ...Pb, T.c.accent2))
       els.push(arrow('a', ...O, ...Pa, T.c.accent))
       els.push(arrow('h', ...O, ...Ph, T.c.warn, 3))
-      els.push(<text key="la" x={Pa[0] + 6} y={Pa[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
+      els.push(<text key="lb" x={Pb[0] - 6} y={Pb[1] - 4} textAnchor="end" fontFamily={T.font} fontSize={11} fill={T.c.accent2}>b(阀门)</text>)
+      els.push(<text key="la" x={Pa[0] + 8} y={Pa[1] + 12} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
       els.push(<text key="lh" x={Ph[0] + 6} y={Ph[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.warn}>a⊙b</text>)
       els.push(<text key="hh" x={30} y={cy + R * unit + 20} fontFamily={T.font} fontSize={11} fill={T.c.dim}>
-        每维各自相乘:维0 ×{b[0]} 、维1 ×{b[1]} —— b 是逐维度的「阀门」</text>)
+        b 不和 a 合成方向,而是<tspan fill={T.c.accent2}>逐维当阀门</tspan>:维0 ×{b[0]}、维1 ×{b[1]}(虚线看每轴被拉伸多少)</text>)
     }
 
     // 顶部说明
