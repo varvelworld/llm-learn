@@ -23,6 +23,7 @@ export const PAPERS = {
   '1904.09751': { t: 'Holtzman et al. 2019 · Nucleus 采样(top-p)' },
   '1805.04833': { t: 'Fan et al. 2018 · top-k 采样' },
   '1904.10509': { t: 'Child et al. 2019 · Sparse Transformers' },
+  '1901.10430': { t: 'Wu et al. 2019 · Lightweight & Dynamic Convolutions(动态卷积)' },
   '2005.14165': { t: 'Brown et al. 2020 · GPT-3' },
   '2302.13971': { t: 'Touvron et al. 2023 · LLaMA' },
   '2307.09288': { t: 'Touvron et al. 2023 · LLaMA 2' },
