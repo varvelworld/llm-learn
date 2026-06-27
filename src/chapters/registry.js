@@ -18,6 +18,7 @@ import Ch12MoE from './Ch12MoE.jsx'
 import Ch14SparseWhy from './Ch14SparseWhy.jsx'
 import Ch15DSA from './Ch15DSA.jsx'
 import Ch16CSAHCA from './Ch16CSAHCA.jsx'
+import Ch17MHC from './Ch17MHC.jsx'
 import G1GlmOverview from './G1GlmOverview.jsx'
 import G2GlmQKNorm from './G2GlmQKNorm.jsx'
 import G5GlmIndexShare from './G5GlmIndexShare.jsx'
@@ -44,7 +45,7 @@ export const CHAPTERS = [
   { num: 14, slug: 'sparse-why', title: '为什么要稀疏注意力', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch14SparseWhy },
   { num: 15, slug: 'dsa', title: 'DSA + 闪电索引器', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch15DSA },
   { num: 16, slug: 'csa-hca', title: 'CSA + HCA 混合注意力', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch16CSAHCA },
-  { num: 17, slug: 'mhc', title: 'mHC 流形超连接', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: null },
+  { num: 17, slug: 'mhc', title: 'mHC 流形超连接', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch17MHC },
   { num: 18, slug: 'engram', title: 'Engram 记忆', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: null },
   { num: 19, slug: 'deepseek', title: '全景总览 · V2→V4', part: 'deepseek', group: '收尾', Component: null },
   { num: 'G1', slug: 'glm-overview', title: 'GLM 渊源与演进', part: 'glm', Component: G1GlmOverview },

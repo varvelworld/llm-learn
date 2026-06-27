@@ -14,6 +14,8 @@ export const PAPERS = {
   '1710.05941': { t: 'Ramachandran et al. 2017 · Swish/SiLU' },
   '1606.08415': { t: 'Hendrycks & Gimpel 2016 · GELU' },
   '1512.03385': { t: 'He et al. 2015 · ResNet(残差连接)' },
+  '2409.19606': { t: 'Zhu et al. 2024 · Hyper-Connections(ByteDance,多残差流)' },
+  '2512.24880': { t: 'DeepSeek-AI 2025 · mHC:流形约束超连接' },
   '2002.04745': { t: 'Xiong et al. 2020 · On Layer Normalization(Pre-LN)' },
   '2012.14913': { t: 'Geva et al. 2020 · FFN 是键值记忆' },
   '1701.06538': { t: 'Shazeer et al. 2017 · Sparsely-Gated MoE' },

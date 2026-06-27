@@ -6,6 +6,7 @@ import { route } from './moe.js'
 import { tokenize } from './tokenizer.js'
 import { seededMatrix } from './synth.js'
 import { colorFor, matrixWH, matmulLayout } from './figure.js'
+import { sinkhorn, rowSums, colSums, gainCurve, spectralRadius } from './manifold.js'
 
 describe('tensor', () => {
   it('dot product', () => {
@@ -128,5 +129,26 @@ describe('tokenizer', () => {
     const a = tokenize('cat')[0].id
     const b = tokenize('the cat')[1].id
     expect(a).toBe(b)
+  })
+})
+
+describe('manifold (mHC)', () => {
+  it('sinkhorn 收敛到双随机:行和、列和都≈1', () => {
+    const M = [[0.2, 0.9, 0.1], [0.7, 0.3, 0.8], [0.5, 0.4, 0.6]]
+    const A = sinkhorn(M, 30)
+    for (const s of rowSums(A)) expect(s).toBeCloseTo(1, 5)
+    for (const s of colSums(A)) expect(s).toBeCloseTo(1, 5)
+  })
+  it('双随机矩阵谱半径=1', () => {
+    const A = sinkhorn([[0.2, 0.9, 0.1], [0.7, 0.3, 0.8], [0.5, 0.4, 0.6]], 40)
+    expect(spectralRadius(A)).toBeCloseTo(1, 3)
+  })
+  it('未约束矩阵增益爆炸、双随机增益有界', () => {
+    const raw = [[0.8, 0.7, 0.9], [0.6, 0.9, 0.7], [0.7, 0.8, 0.6]]
+    const x0 = [1, 0.5, -0.3]
+    const rawGain = gainCurve(raw, x0, 12).at(-1)
+    const dsGain = gainCurve(sinkhorn(raw, 30), x0, 12).at(-1)
+    expect(rawGain).toBeGreaterThan(50) // 谱半径>1 → 指数放大
+    expect(dsGain).toBeLessThan(2) // 谱半径=1 → 有界
   })
 })
