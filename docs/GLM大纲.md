@@ -27,6 +27,10 @@
 ## 进度
 
 - ✅ **G1 已建**(glm-overview):渊源(空白填充)+ 两条路线对照网格(分叉→趋同→增量)。
+- ✅ **G2 已建**(glm-qknorm):QK-Norm = 打分前对 q、k 各做 RMSNorm(投影→RMSNorm→RoPE→打分),
+  核心性质尺度无关。交互:滑块 s 放大 q/k 模长,无 Norm 侧 softmax 随 s² 塌成 one-hot(卡死),
+  QK-Norm 侧分布纹丝不动。诚实标注原版(Henry 2020)用 L2+可学温度、现代改 RMSNorm。
+  源:Henry 2020(2010.04245)、RMSNorm(1910.07467)、GLM-4.5(2508.06471)。
 - ✅ **G5 已建**(glm-indexshare):IndexShare 已坐实——每 4 层共享 1 次索引(组长🔍算、其余↻用),
   相邻层选中 token 重合 70~100%,索引省 (G−1)/G=75%,1M 上下文每 token FLOPs 降 ~2.9×。
   交互:L=8 层×token 选择网格 + G 滑块 + 漏选标记 + FLOP 公式。源:IndexCache(arXiv:2603.12201)。

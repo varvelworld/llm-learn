@@ -8,6 +8,7 @@ export const PAPERS = {
   '1804.10959': { t: 'Kudo 2018 · Subword Regularization(Unigram)' },
   '1810.04805': { t: 'Devlin et al. 2018 · BERT' },
   '1910.07467': { t: 'Zhang & Sennrich 2019 · RMSNorm' },
+  '2010.04245': { t: 'Henry et al. 2020 · Query-Key Normalization(QK-Norm 起源)' },
   '2104.09864': { t: 'Su et al. 2021 · RoFormer(RoPE)' },
   '2002.05202': { t: 'Shazeer 2020 · GLU Variants(SwiGLU)' },
   '1710.05941': { t: 'Ramachandran et al. 2017 · Swish/SiLU' },
