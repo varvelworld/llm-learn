@@ -14,12 +14,20 @@
 | G6 | MTP 与投机解码(GLM 版) | GLM 也用多 token 预测,5.2 接受长度 +20% | 第二部分 MTP | GLM-5(2602.15763) |
 | G7 | 全景对比 · DeepSeek vs GLM | 两条开源路线对照:注意力、MoE 路由、稀疏注意力(DSA/CSA vs DSA+IndexShare)、长上下文打法 | 收尾 | 综合 |
 
-## ⚠️ 动笔前必须核实(铁律)
+## ✅ 核实结论(已查证,多源印证)
 
-1. **GLM-5/5.2 的注意力到底是 GQA 还是 MLA**:GLM-4.5 已确认 GQA+部分 RoPE;但 GLM-5 报告(2602.15763)又提及 MLA 与 DSA,
-   可能 5 代转向 DeepSeek 式。G3 / G5 的措辞需待核实后定(避免重蹈 DeepSeek 讲错的覆辙)。
-2. **IndexShare 精确机制**(跨层共享的是 top-k 索引还是索引器输出)与 5.2 的 1M / 2.9× 数字,从 GLM-5 报告原文坐实。
-3. 全部 G1–G7 比照第二部分做一轮多 Agent 权威核对,再开建。
+1. **GLM-5/5.2 注意力 = MLA(非 GQA)**:GLM-4.5 是 GQA+部分 RoPE;**GLM-5 转向并趋同 DeepSeek**——
+   用 **MLA + DSA**、RoPE(MLA 式解耦)、MoE(256 专家/80 层/40B 激活)、MTP。GLM-5 报告(2602.15763)摘要明确
+   "adopts DSA";多源印证 MLA。→ G3 仍讲 GLM-4.5 的 GQA+部分 RoPE,但注明 GLM-5 后改 MLA;G5 聚焦 IndexShare。
+2. **IndexShare = GLM-5.2 的独门增量**:在 DSA 之上,跨相邻层复用稀疏 top-k 索引 → 1M 上下文、FLOPs 降 ~2.9×。
+3. 故事线确定:**GLM-4.5 分叉 → GLM-5 趋同(MLA+DSA)→ GLM-5.2 增量(IndexShare)**。
+
+> 仍待坐实(写 G5 前):IndexShare 跨层共享的精确对象(top-k 索引 vs 索引器输出)从 GLM-5 报告原文确认。
+
+## 进度
+
+- ✅ **G1 已建**(glm-overview):渊源(空白填充)+ 两条路线对照网格(分叉→趋同→增量)。
+- ⬜ G2–G7 建设中。
 
 ## 已查证(初步)
 

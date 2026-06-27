@@ -18,6 +18,7 @@ import Ch12MoE from './Ch12MoE.jsx'
 import Ch14SparseWhy from './Ch14SparseWhy.jsx'
 import Ch15DSA from './Ch15DSA.jsx'
 import Ch16CSAHCA from './Ch16CSAHCA.jsx'
+import G1GlmOverview from './G1GlmOverview.jsx'
 
 // part: 'basics' | 'deepseek'。Component 为 null 表示"建设中"。
 export const CHAPTERS = [
@@ -44,6 +45,13 @@ export const CHAPTERS = [
   { num: 17, slug: 'mhc', title: 'mHC 流形超连接', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: null },
   { num: 18, slug: 'engram', title: 'Engram 记忆', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: null },
   { num: 19, slug: 'deepseek', title: '全景总览 · V2→V4', part: 'deepseek', group: '收尾', Component: null },
+  { num: 'G1', slug: 'glm-overview', title: 'GLM 渊源与演进', part: 'glm', Component: G1GlmOverview },
+  { num: 'G2', slug: 'glm-qknorm', title: 'QK-Norm', part: 'glm', Component: null },
+  { num: 'G3', slug: 'glm-rope-gqa', title: '部分 RoPE + GQA', part: 'glm', Component: null },
+  { num: 'G4', slug: 'glm-moe', title: 'Sigmoid 门控 MoE', part: 'glm', Component: null },
+  { num: 'G5', slug: 'glm-indexshare', title: 'GLM-5.2 IndexShare', part: 'glm', Component: null },
+  { num: 'G6', slug: 'glm-mtp', title: 'MTP 投机解码', part: 'glm', Component: null },
+  { num: 'G7', slug: 'glm-vs-deepseek', title: 'DeepSeek vs GLM', part: 'glm', Component: null },
 ]
 
 export function findChapter(slug) {

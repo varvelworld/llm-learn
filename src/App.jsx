@@ -21,6 +21,7 @@ function Sidebar() {
   const basics = CHAPTERS.filter((c) => c.part === 'basics')
   const deep = CHAPTERS.filter((c) => c.part === 'deepseek')
   const deepGroups = [...new Set(deep.map((c) => c.group))] // 按版本顺序的子分组
+  const glm = CHAPTERS.filter((c) => c.part === 'glm')
   return (
     <nav className="sidebar">
       <div className="brand">
@@ -41,6 +42,9 @@ function Sidebar() {
           {deep.filter((c) => c.group === g).map((c) => <NavItem key={c.slug} c={c} />)}
         </div>
       ))}
+
+      {glm.length > 0 && <div className="group-label">第三部分 · GLM(智谱)</div>}
+      {glm.map((c) => <NavItem key={c.slug} c={c} />)}
     </nav>
   )
 }
