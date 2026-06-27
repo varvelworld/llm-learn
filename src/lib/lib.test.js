@@ -7,6 +7,7 @@ import { tokenize } from './tokenizer.js'
 import { seededMatrix } from './synth.js'
 import { colorFor, matrixWH, matmulLayout } from './figure.js'
 import { sinkhorn, rowSums, colSums, gainCurve, spectralRadius } from './manifold.js'
+import { acceptProbs, expectedAccept, speedup, parallelDraft } from './specdec.js'
 
 describe('tensor', () => {
   it('dot product', () => {
@@ -150,5 +151,26 @@ describe('manifold (mHC)', () => {
     const dsGain = gainCurve(sinkhorn(raw, 30), x0, 12).at(-1)
     expect(rawGain).toBeGreaterThan(50) // 谱半径>1 → 指数放大
     expect(dsGain).toBeLessThan(2) // 谱半径=1 → 有界
+  })
+})
+
+describe('specdec (DSpark)', () => {
+  it('acceptProbs = c^k', () => {
+    expect(acceptProbs(0.5, 3)).toEqual([0.5, 0.25, 0.125])
+  })
+  it('期望接受长度:并行(c=0.5)饱和、半自回归(c=0.85)更长', () => {
+    const par = expectedAccept(0.5, 8)
+    const sar = expectedAccept(0.85, 8)
+    expect(par).toBeCloseTo(0.996, 2) // → 趋近 1
+    expect(sar).toBeGreaterThan(par * 3) // 半自回归显著更长
+  })
+  it('加速比 = E+1', () => {
+    expect(speedup(0.5, 8)).toBeCloseTo(expectedAccept(0.5, 8) + 1, 6)
+  })
+  it('并行抽样:首次串味即截断接受前缀', () => {
+    const r = parallelDraft([0.3, 0.8, -0.4, 0.2, -0.9], 5) // 模式 1,1,0,... → 第 2 位串味
+    expect(r.mode0).toBe(1)
+    expect(r.firstCollision).toBe(2)
+    expect(r.acceptedLen).toBe(2)
   })
 })
