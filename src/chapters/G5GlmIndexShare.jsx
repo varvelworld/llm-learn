@@ -6,9 +6,10 @@ import Refs from '../components/Refs.jsx'
 import { T } from '../components/svg/theme.js'
 import { seededMatrix } from '../lib/synth.js'
 
-const N = 12 // 序列 token 数(toy)
-const L = 8 // 层数(toy)
-const K = 3 // 每层选 top-k(真实 k=2048)
+const N = 14 // 序列 token 数(toy)
+const L = 12 // 层数(toy)
+const K = 4 // 每层选 top-k(真实 k=2048)
+const DRIFT = 0.07 // 每层偏好漂移步长:越大相邻层差异越大(真实相邻层重合 70~100%)
 
 // 取数组里最大的 k 个的下标集合
 function topkSet(arr, k) {
@@ -20,14 +21,16 @@ function topkSet(arr, k) {
 export default function G5GlmIndexShare({ prev, next }) {
   const [G, setG] = useState(4) // 每 G 层共享一次索引(G=1 即不共享)
 
-  // 各层索引器分数:同一 base + 每层小扰动 → 相邻层 top-k 高度重合(真实 70~100%)
+  // 各层索引器分数:base 分 + 每个 token 一个随层线性漂移的趋势。
+  // → 排名随层「缓慢漂移」:相邻层最像、越远越不像(而非随机抖动,这样漏选才随 G 增长)。
   const { indep, shared, leaders, overlaps, avgOverlap } = useMemo(() => {
-    const base = seededMatrix(1, N, 7)[0]
-    const noise = seededMatrix(L, N, 21)
-    const S = noise.map((row) => row.map((v, t) => base[t] + v * 0.3))
-    const indep = S.map((row) => topkSet(row, K)) // 每层独立会选的
+    const base = seededMatrix(1, N, 7)[0] // 每 token 的基准偏好
+    const trend = seededMatrix(1, N, 29)[0] // 每 token 的漂移方向/速度 ∈[-1,1]
+    const S = Array.from({ length: L }, (_, l) =>
+      base.map((b, t) => b + trend[t] * l * DRIFT))
+    const indep = S.map((row) => topkSet(row, K)) // 每层「独立」会选的 top-k
     const leaders = Array.from({ length: L }, (_, l) => Math.floor(l / G) * G)
-    const shared = leaders.map((ld) => indep[ld]) // IndexShare:复用组长的
+    const shared = leaders.map((ld) => indep[ld]) // IndexShare:全组复用组长的 top-k
     const overlaps = indep.map((set, l) => {
       let hit = 0
       shared[l].forEach((i) => { if (set.has(i)) hit++ })
@@ -131,16 +134,19 @@ export default function G5GlmIndexShare({ prev, next }) {
       <>
         <h3>L={L} 层 DSA · 每 G 层共享一次索引</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          拖 G:G=1 是原始 DSA(每层都🔍算);G=4 是 IndexShare(每组只组长算,其余复用)。
-          看绿色选中块——同组各层完全一致;橙圈是复用带来的极少「漏选」。
+          每层偏好随深度<b>缓慢漂移</b>(相邻层最像)。拖 G:G=1 是原始 DSA(每层都🔍算、零漏选);
+          G 越大每组只组长算、其余复用——绿色选中块同组完全一致,而<b>组内越靠下的层离组长越远、漂移累积越多,橙圈(漏选)就越多</b>。
+          这就是「省得多 vs 漏得多」的权衡。
         </p>
         <FigureBoard renderSvg={render} baseCell={26} fullCell={38} controls={controls} />
         <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
           <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{costTex}</Tex></div>
           <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>
-            当前 G={G}:全模型索引器只跑 <b style={{ color: 'var(--accent2)' }}>{runs}</b> 次(而非 {L} 次);
-            复用与各层独立选择的平均重合度 <b style={{ color: 'var(--accent2)' }}>{Math.round(avgOverlap * 100)}%</b>
-            (越高说明复用越无损)。
+            当前 G={G}:{G === 1
+              ? <>每层都跑索引器(共 <b style={{ color: 'var(--accent2)' }}>{L}</b> 次)——这就是原始 DSA,无漏选(重合度 100%)。</>
+              : <>{L} 层只跑 <b style={{ color: 'var(--accent2)' }}>{runs}</b> 次索引器(省 {Math.round((1 - runs / L) * 100)}%);
+                复用与各层独立选择的平均重合度 <b style={{ color: 'var(--accent2)' }}>{Math.round(avgOverlap * 100)}%</b>
+                ——重合越高,复用越无损。组内越靠下的层(离组长越远),漂移累积越多、漏选(橙圈)越多。</>}
           </div>
         </div>
       </>
