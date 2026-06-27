@@ -34,6 +34,12 @@ export const PAPERS = {
   '2501.12948': { t: 'DeepSeek-AI 2025 · DeepSeek-R1' },
   '2512.02556': { t: 'DeepSeek-AI 2025 · DeepSeek-V3.2-Exp 技术报告(DSA)' },
   '2606.19348': { t: 'DeepSeek-AI 2026 · DeepSeek-V4 技术报告(CSA/HCA)' },
+  '2508.06471': { t: 'Zhipu/Z.ai 2025 · GLM-4.5 技术报告' },
+  '2602.15763': { t: 'Zhipu/Z.ai 2026 · GLM-5 技术报告' },
+  '2603.12201': { t: 'THUDM 2026 · IndexCache:跨层索引复用(IndexShare)' },
+  '2103.10360': { t: 'Du et al. 2021 · GLM 自回归空白填充' },
+  '2210.02414': { t: 'Zeng et al. 2022 · GLM-130B' },
+  '2406.12793': { t: 'GLM Team 2024 · ChatGLM / GLM-4 家族' },
 }
 
 export const arxivUrl = (id) => `https://arxiv.org/abs/${id}`

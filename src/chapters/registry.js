@@ -19,6 +19,7 @@ import Ch14SparseWhy from './Ch14SparseWhy.jsx'
 import Ch15DSA from './Ch15DSA.jsx'
 import Ch16CSAHCA from './Ch16CSAHCA.jsx'
 import G1GlmOverview from './G1GlmOverview.jsx'
+import G5GlmIndexShare from './G5GlmIndexShare.jsx'
 
 // part: 'basics' | 'deepseek'。Component 为 null 表示"建设中"。
 export const CHAPTERS = [
@@ -49,7 +50,7 @@ export const CHAPTERS = [
   { num: 'G2', slug: 'glm-qknorm', title: 'QK-Norm', part: 'glm', Component: null },
   { num: 'G3', slug: 'glm-rope-gqa', title: '部分 RoPE + GQA', part: 'glm', Component: null },
   { num: 'G4', slug: 'glm-moe', title: 'Sigmoid 门控 MoE', part: 'glm', Component: null },
-  { num: 'G5', slug: 'glm-indexshare', title: 'GLM-5.2 IndexShare', part: 'glm', Component: null },
+  { num: 'G5', slug: 'glm-indexshare', title: 'GLM-5.2 IndexShare', part: 'glm', Component: G5GlmIndexShare },
   { num: 'G6', slug: 'glm-mtp', title: 'MTP 投机解码', part: 'glm', Component: null },
   { num: 'G7', slug: 'glm-vs-deepseek', title: 'DeepSeek vs GLM', part: 'glm', Component: null },
 ]
