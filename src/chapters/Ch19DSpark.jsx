@@ -131,40 +131,55 @@ E=\\sum_{k=1}^{L}c^{\\,k}
 \\end{cases}`
 
   return (
-    <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch19" title="DSpark:让「投机解码」的草稿更敢草" prev={prev} next={next}>
+    <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch19" title="DSpark:让投机解码的草稿更靠谱" prev={prev} next={next}>
       <>
         <p>
-          自回归生成有个硬伤:<b>一次只能吐一个 token</b>,大模型每个 token 都要跑一遍完整前向,慢。
-          <b>投机解码(speculative decoding)</b>是个聪明的提速法:让一个<b>便宜的 drafter</b> 先<b>草一串</b> token,
-          再让<b>大模型一次性并行验证</b>这一串——对了就全收下,错了就从错的地方接管。
+          大模型生成慢在哪:<b>一次只蹦一个字</b>,每个字都要把整个大模型从头算一遍。
+          <b>投机解码(speculative decoding)</b>用一个巧办法提速,打个比方最好懂——
         </p>
         <p>
-          关键是它<b>无损</b>:通过一个拒绝采样的验证规则,最终输出分布<b>和大模型逐 token 解码完全一样</b>,
-          只是更快。所以它几乎是「免费的午餐」。
+          一个<b>老板</b>(大模型:聪明但慢)配一个<b>实习生</b>(drafter:水平一般但快)。
+          实习生先<b>飞快草一串词</b>,老板<b>一眼把整串扫完</b>:开头对的<b>照单全收</b>,
+          碰到<b>第一个错的</b>就从那里接手、自己写对。这样老板每"读"一次就能敲定<b>一整串</b>字,
+          而不是一个字——于是快了好几倍。
+        </p>
+        <p>
+          最妙的是<b>无损</b>:每个字都经老板把关,最终输出<b>和大模型自己一个一个写出来的一字不差</b>,
+          只是更快——近乎「免费的午餐」。
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0' }}>
+          想要严谨版:草稿词 <Tex>{'x'}</Tex> 以「大模型本来也想说它」的程度被接受,被拒就按两者差值补一个字。
+          可证明最终分布<b>严格等于</b>大模型逐字解码 —— 公式如下。
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
-        <h2>drafter 的两难:质量 vs 速度</h2>
+        <h2>实习生怎么草?两种办法都不完美</h2>
         <ul>
-          <li><b>自回归 drafter</b>:也一个个生成,质量高、但<b>越草越慢</b>(失去了并行的意义)。</li>
-          <li><b>并行 drafter</b>:一次吐出整块,快——但<b>块内 token 各自独立</b>预测,会<b>撞车</b>:
-            一句话有多种合理说法(<b>多峰</b>),各位置各取局部最优,就拼成
-            <b style={{ color: 'var(--warn)' }}>“of course / no problem”→“of problem / no course”</b>(multi-modal collision)。
-            而且<b>越往后越容易串味</b>,接受长度迅速衰减。</li>
+          <li><b>① 一个一个草(自回归)</b>:写每个词时都看着自己<b>刚写的上一个词</b>,质量高——
+            但这样<b>和老板一样一个个来,没省到时间</b>。</li>
+          <li><b>② 一口气草一整块(并行)</b>:所有位置<b>同时</b>各写各的,飞快;
+            麻烦在于它们<b>互相不看</b>。</li>
         </ul>
         <p>
-          这其实是非自回归生成的老问题(Gu 2018):独立并行 = 把联合分布当成各位置边缘的乘积,丢了 token 间的相关性。
-          右图里「并行草」就是这样:头几个还连贯,采到某一步突然串到另一句意,<b>那之后整段都被大模型拒掉、白算</b>。
+          第②种的坑在于:一句话常有<b>好几种都对</b>的说法。比如回应既可以是
+          「<b>of course</b>」、也可以是「<b>no problem</b>」。可并行时各写各的——
+          位置 1 自己挑了 <b>of</b>、位置 2 自己挑了 <b>problem</b>,<b>单看都合理,拼一起却成了
+          <span style={{ color: 'var(--warn)' }}> “of problem”</span></b>,废了。这叫<b>多峰碰撞</b>(multi-modal collision)。
+          而且<b>越往后越容易串味</b>:一旦某个词串到另一种说法,它<b>后面的全被老板拒掉、白草</b>。
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0' }}>
+          量化一下:并行每多草一个词,「整串还连贯」的概率就<b>再乘一次</b> <Tex>{'c\\approx0.5'}</Tex>,
+          所以期望接受长度很快<b>卡在 ~1</b>(右图);DSpark 把 <Tex>{'c'}</Tex> 抬高,长度就能随块长一直涨。
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{collideTex}</Tex></div>
-        <h2>DSpark:半自回归 + 置信度头</h2>
+        <h2>DSpark:让实习生「边草边瞄一眼」</h2>
         <p>
-          DeepSeek-V4 的 <b>DSpark</b> 取两者之长——<b>半自回归(semi-autoregressive)</b>:
-          保留并行 drafter 的高吞吐,但在块内<b>加一个轻量串行模块,建模 token 之间的依赖</b>,
-          让块内不再各说各话、连贯起来,<b>压住后段的接受率衰减</b>。
+          DeepSeek-V4 的 <b>DSpark</b> 把两种办法的优点合起来——叫 <b>半自回归(semi-autoregressive)</b>:
+          还是<b>一次草一整块</b>(保住快),但让实习生写每个词时<b>瞄一眼自己刚写的上一个词</b>。
+          这样块内不再各说各话、自然<b>连贯</b>起来,<b>后段不再轻易串味</b>,接受长度随块长一直涨。
         </p>
         <p>
-          它还有个 <b>置信度头(confidence head)</b>:预测每个草稿 token <b>会被接受的概率</b>,
-          把那些注定要被拒的<b>尾巴 token</b>提前砍掉、不浪费大模型的并行验证名额(高负载时尤其值)。
+          它还配了个<b>置信度头(confidence head)</b>:给每个草稿词打一个「我多有把握这词能过审」的分,
+          把<b>铁定会被拒的尾巴词提前撤掉</b>,不白占老板宝贵的验证名额(系统繁忙时尤其划算)。
         </p>
         <div className="note">
           实测:接受长度比 <b>Eagle-3 高 26~31%</b>、比 <b>DFlash 高 16~18%</b>;每用户生成速度
