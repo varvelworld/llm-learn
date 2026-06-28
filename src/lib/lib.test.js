@@ -8,6 +8,7 @@ import { seededMatrix } from './synth.js'
 import { colorFor, matrixWH, matmulLayout } from './figure.js'
 import { sinkhorn, rowSums, colSums, gainCurve, spectralRadius } from './manifold.js'
 import { acceptProbs, expectedAccept, speedup, parallelDraft } from './specdec.js'
+import { ngramHash, allocLoss, ALLOC_OPTIMUM } from './engram.js'
 
 describe('tensor', () => {
   it('dot product', () => {
@@ -172,5 +173,21 @@ describe('specdec (DSpark)', () => {
     expect(r.mode0).toBe(1)
     expect(r.firstCollision).toBe(2)
     expect(r.acceptedLen).toBe(2)
+  })
+})
+
+describe('engram', () => {
+  it('ngramHash 确定且落在 [0,B)', () => {
+    const a = ngramHash([3, 4, 5], 8)
+    const b = ngramHash([3, 4, 5], 8)
+    expect(a).toBe(b)
+    expect(a).toBeGreaterThanOrEqual(0)
+    expect(a).toBeLessThan(8)
+    expect(ngramHash([5, 4, 3], 100003)).not.toBe(ngramHash([3, 4, 5], 100003)) // 顺序敏感(大桶下)
+  })
+  it('稀疏分配律:最优在 ~0.22,两端都更差', () => {
+    expect(allocLoss(ALLOC_OPTIMUM)).toBeLessThan(allocLoss(0))
+    expect(allocLoss(ALLOC_OPTIMUM)).toBeLessThan(allocLoss(1))
+    expect(allocLoss(1)).toBeGreaterThan(allocLoss(0)) // 全记忆比全计算还差
   })
 })

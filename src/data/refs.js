@@ -41,6 +41,7 @@ export const PAPERS = {
   '2412.19437': { t: 'DeepSeek-AI 2024 · DeepSeek-V3 技术报告' },
   '2501.12948': { t: 'DeepSeek-AI 2025 · DeepSeek-R1' },
   '2512.02556': { t: 'DeepSeek-AI 2025 · DeepSeek-V3.2-Exp 技术报告(DSA)' },
+  '2601.07372': { t: 'DeepSeek-AI 2026 · Engram:可扩展查表式条件记忆(新稀疏轴)' },
   '2606.19348': { t: 'DeepSeek-AI 2026 · DeepSeek-V4 技术报告(CSA/HCA)' },
   '2508.06471': { t: 'Zhipu/Z.ai 2025 · GLM-4.5 技术报告' },
   '2602.15763': { t: 'Zhipu/Z.ai 2026 · GLM-5 技术报告' },
