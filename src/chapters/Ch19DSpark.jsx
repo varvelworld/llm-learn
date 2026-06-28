@@ -167,16 +167,24 @@ E=\\sum_{k=1}^{L}c^{\\,k}
           把那些注定要被拒的<b>尾巴 token</b>提前砍掉、不浪费大模型的并行验证名额(高负载时尤其值)。
         </p>
         <div className="note">
-          实测(对比 Eagle-3、DFlash):<b>接受长度 +16.3%~30.9%</b>,吞吐 <b>+51%~400%</b>、延迟下降;
-          DeepSeek 同时开源了训练/评测草稿模型的代码库 <b>DeepSpec</b>。DSpark 是<b>纯推理侧</b>的工程升级,
-          <b>不改模型架构、不改输出分布</b>。
+          实测:接受长度比 <b>Eagle-3 高 26~31%</b>、比 <b>DFlash 高 16~18%</b>;每用户生成速度
+          <b>Flash +60~85% / Pro +57~78%</b>(对比 MTP-1 基线)、延迟下降。
+          DeepSeek 同时开源了训练/评测草稿模型的代码库 <b>DeepSpec</b>(内含 DSpark / DFlash / Eagle3)。
+          DSpark 全名 <b>Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation</b>,
+          是<b>纯推理侧</b>的工程升级,<b>不改模型架构、不改输出分布</b>。
         </div>
         <div className="note" style={{ marginTop: 8 }}>
           <b>本图的诚实简化</b>:用「两个互斥句意」的 toy 模型演示多峰碰撞,把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>
           (并行≈0.5、半自回归更高);真实 drafter 是神经网络、接受由拒绝采样逐 token 判定。结论方向一致:
           <b>并行接受长度饱和在 ~1,半自回归随块长继续变长</b>。
         </div>
-        <Refs ids={['2211.17192', '2302.01318', '1711.02281', '2401.10774', '2401.15077', '2606.19348']} />
+        <Refs
+          ids={['2211.17192', '2302.01318', '1711.02281', '2401.10774', '2401.15077', '2606.19348']}
+          extra={[
+            { label: 'DeepSeek 2026 · DSpark 论文(Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation)', url: 'https://github.com/deepseek-ai/DeepSpec/blob/main/DSpark_paper.pdf' },
+            { label: 'deepseek-ai/DeepSpec · 开源代码库(DSpark / DFlash / Eagle3)', url: 'https://github.com/deepseek-ai/DeepSpec' },
+          ]}
+        />
       </>
       <>
         <h3>同一块草稿:并行会「串味」截断,DSpark 半自回归保持连贯</h3>
