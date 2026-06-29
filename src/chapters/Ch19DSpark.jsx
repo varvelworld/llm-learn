@@ -122,6 +122,13 @@ export default function Ch19DSpark({ prev, next }) {
   const losslessTex = `\\text{接受概率}=\\min\\!\\Big(1,\\;\\frac{\\textcolor{#7ee787}{p_{\\text{大}}(x)}}{\\textcolor{#6ea8fe}{q_{\\text{草}}(x)}}\\Big),
 \\qquad \\text{被拒则从 }(p_{\\text{大}}-q_{\\text{草}})_{+}\\text{ 补采}\\;\\Rightarrow\\;\\text{输出分布}\\equiv p_{\\text{大}}\\ (\\textbf{无损})`
 
+  // 论文公式 (1):每生成一个字的平均延迟 = 一轮总耗时 / 一轮接受字数
+  const latencyTex = `L=\\frac{\\textcolor{#6ea8fe}{T_{\\text{draft}}}+\\textcolor{#f0a35e}{T_{\\text{verify}}}}{\\textcolor{#7ee787}{\\tau}}
+\\qquad\\Rightarrow\\qquad
+\\text{提速三杠杆:}\\;\\textcolor{#6ea8fe}{T_{\\text{draft}}\\!\\downarrow}\\;(\\text{草得快}),\\;\\;
+\\textcolor{#7ee787}{\\tau\\!\\uparrow}\\;(\\text{草得准}),\\;\\;
+\\textcolor{#f0a35e}{T_{\\text{verify}}\\!\\downarrow}\\;(\\text{验得省})`
+
   const collideTex = `\\underbrace{P(\\text{接受前缀}\\ge k)=c^{\\,k}}_{\\text{连贯概率 }c}
 \\;\\Rightarrow\\;
 E=\\sum_{k=1}^{L}c^{\\,k}
@@ -152,12 +159,28 @@ E=\\sum_{k=1}^{L}c^{\\,k}
           可证明最终分布<b>严格等于</b>大模型逐字解码 —— 公式如下。
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
-        <h2>实习生怎么草?两种办法都不完美</h2>
+
+        <h2>提速由什么决定?——一条核心公式(论文公式 1)</h2>
+        <p>
+          把「每生成一个字的平均耗时」拆开,就是 DSpark 全篇的<b>总纲</b>:一轮里实习生<b>草稿</b>花
+          <Tex>{'T_{\\text{draft}}'}</Tex>、老板<b>验证</b>花 <Tex>{'T_{\\text{verify}}'}</Tex>,
+          这一轮敲定了 <Tex>{'\\tau'}</Tex> 个字(就是<b>接受长度</b>),那么摊到<b>每个字</b>的延迟是:
+        </p>
+        <div style={{ fontSize: 14, overflowX: 'auto', margin: '6px 0' }}><Tex block>{latencyTex}</Tex></div>
+        <p>
+          想更快,只有<b>三条杠杆</b>:<b style={{ color: 'var(--accent)' }}>① 草得快(↓T_draft)</b>、
+          <b style={{ color: 'var(--accent-2)' }}>② 草得准(↑τ,一次多收几个字)</b>、
+          <b style={{ color: 'var(--warn)' }}>③ 验得省(↓T_verify)</b>。
+          下面的两难、以及 DSpark 的每一招,本质都是在动这三个量——<b>对着这条式子看,全章就串起来了</b>。
+        </p>
+
+        <h2>实习生怎么草?两难全在 T_draft 和 τ 上</h2>
         <ul>
-          <li><b>① 一个一个草(自回归)</b>:写每个词时都看着自己<b>刚写的上一个词</b>,质量高——
-            但这样<b>和老板一样一个个来,没省到时间</b>。</li>
-          <li><b>② 一口气草一整块(并行)</b>:所有位置<b>同时</b>各写各的,飞快;
-            麻烦在于它们<b>互相不看</b>。</li>
+          <li><b>① 一个一个草(自回归)</b>:写每个词都看着<b>刚写的上一个词</b>,连贯、
+            <b style={{ color: 'var(--accent-2)' }}>τ 高</b>——但<b style={{ color: 'var(--accent)' }}>T_draft 随块长线性增长</b>(越草越慢),只能草很短。</li>
+          <li><b>② 一口气草一整块(并行)</b>:所有位置<b>同时</b>各写各的,
+            <b style={{ color: 'var(--accent)' }}>T_draft≈一次前向</b>(与块长无关,飞快)——
+            但它们<b>互相不看</b>,导致 <b style={{ color: 'var(--accent-2)' }}>τ 低</b>。</li>
         </ul>
         <p>
           第②种的坑在于:一句话常有<b>好几种都对</b>的说法。比如回应既可以是
@@ -171,16 +194,20 @@ E=\\sum_{k=1}^{L}c^{\\,k}
           所以期望接受长度很快<b>卡在 ~1</b>(右图);DSpark 把 <Tex>{'c'}</Tex> 抬高,长度就能随块长一直涨。
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{collideTex}</Tex></div>
-        <h2>DSpark:让实习生「边草边瞄一眼」</h2>
+        <h2>DSpark:一次动足三条杠杆</h2>
         <p>
-          DeepSeek-V4 的 <b>DSpark</b> 把两种办法的优点合起来——叫 <b>半自回归(semi-autoregressive)</b>:
-          还是<b>一次草一整块</b>(保住快),但让实习生写每个词时<b>瞄一眼自己刚写的上一个词</b>。
-          这样块内不再各说各话、自然<b>连贯</b>起来,<b>后段不再轻易串味</b>,接受长度随块长一直涨。
+          DeepSeek-V4 的 <b>DSpark</b> 同时压低公式 1 的三个量:
         </p>
-        <p>
-          它还配了个<b>置信度头(confidence head)</b>:给每个草稿词打一个「我多有把握这词能过审」的分,
-          把<b>铁定会被拒的尾巴词提前撤掉</b>,不白占老板宝贵的验证名额(系统繁忙时尤其划算)。
-        </p>
+        <ul>
+          <li><b>半自回归(semi-autoregressive)</b>:用一个<b>并行骨架</b>扛大部分草稿计算
+            (<b style={{ color: 'var(--accent)' }}>T_draft 仍≈一次前向</b>,草得快不变),再挂一个<b>轻量串行块</b>,
+            让实习生写每个词时<b>瞄一眼自己刚写的上一个词</b>、注入依赖
+            (<b style={{ color: 'var(--accent-2)' }}>τ 抬高</b>,后段不再串味)。一举占住「草得快 + 草得准」两条。</li>
+          <li><b>置信度调度验证(confidence-scheduled)</b>:置信度头给每个草稿词打一个「能过审的把握」分,
+            <b>系统忙时只验证高把握的前缀、砍掉低置信尾巴</b>
+            (<b style={{ color: 'var(--warn)' }}>砍掉 T_verify 的浪费</b>,验得省)——
+            空闲时多验、繁忙时少验,按负载自适应。</li>
+        </ul>
         <div className="note">
           实测:接受长度比 <b>Eagle-3 高 26~31%</b>、比 <b>DFlash 高 16~18%</b>;每用户生成速度
           <b>Flash +60~85% / Pro +57~78%</b>(对比 MTP-1 基线)、延迟下降。
@@ -190,8 +217,11 @@ E=\\sum_{k=1}^{L}c^{\\,k}
         </div>
         <div className="note" style={{ marginTop: 8 }}>
           <b>本图的诚实简化</b>:用「两个互斥句意」的 toy 模型演示多峰碰撞,把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>
-          (并行≈0.5、半自回归更高);真实 drafter 是神经网络、接受由拒绝采样逐 token 判定。结论方向一致:
-          <b>并行接受长度饱和在 ~1,半自回归随块长继续变长</b>。
+          (并行≈0.5、半自回归更高);真实 drafter 是神经网络、接受由拒绝采样逐 token 判定。
+          图中「加速比」取 <Tex>{'\\tau+1'}</Tex>(一轮接受 τ 个 + 老板补 1 个),对应公式 1 中
+          <Tex>{'T_{\\text{draft}},T_{\\text{verify}}'}</Tex> 都很小的情形——这张图只演示<b>第②条杠杆 τ</b>;
+          DSpark 真正的提速还来自把 <Tex>{'T_{\\text{verify}}'}</Tex> 也压下去。结论方向一致:
+          <b>并行 τ 饱和在 ~1,半自回归随块长继续变长</b>。
         </div>
         <Refs
           ids={['2211.17192', '2302.01318', '1711.02281', '2401.10774', '2401.15077', '2606.19348']}
