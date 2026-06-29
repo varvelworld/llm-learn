@@ -7,7 +7,7 @@ import { tokenize } from './tokenizer.js'
 import { seededMatrix } from './synth.js'
 import { colorFor, matrixWH, matmulLayout } from './figure.js'
 import { sinkhorn, rowSums, colSums, gainCurve, spectralRadius } from './manifold.js'
-import { acceptProbs, expectedAccept, speedup, parallelDraft, cumSurvival, scheduleLength } from './specdec.js'
+import { acceptProbs, expectedAccept, speedup, parallelDraft, cumSurvival, scheduleLength, overlap } from './specdec.js'
 import { ngramHash, allocLoss, ALLOC_OPTIMUM } from './engram.js'
 
 describe('tensor', () => {
@@ -204,5 +204,14 @@ describe('specdec · confidence & scheduler', () => {
     expect(mid).toBeGreaterThan(0)
     expect(mid).toBeLessThan(4)
     expect(scheduleLength(c, 0.9)).toBeLessThanOrEqual(mid) // 阈值升→更短
+  })
+})
+
+describe('specdec · overlap (置信度标签)', () => {
+  it('overlap = Σmin = 1-½Σ|pd-pt|,完全一致时为 1', () => {
+    const pd = [0.5, 0.3, 0.2], pt = [0.4, 0.4, 0.2]
+    const tv = 0.5 * pd.reduce((s, x, i) => s + Math.abs(x - pt[i]), 0)
+    expect(overlap(pd, pt)).toBeCloseTo(1 - tv, 10)
+    expect(overlap(pt, pt)).toBeCloseTo(1, 10)
   })
 })
