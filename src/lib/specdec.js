@@ -27,6 +27,32 @@ export function speedup(c, L) {
 }
 
 /**
+ * 前缀存活概率:a_j = ∏_{i≤j} c_i(随 j 单调不增)。
+ * c_i 是各位置「在前缀都被接受的条件下能过审」的概率(置信度头预测)。
+ */
+export function cumSurvival(confs) {
+  const out = []
+  let p = 1
+  for (const c of confs) { p *= c; out.push(p) }
+  return out
+}
+
+/**
+ * 简化版「按负载定验证长度」:保留 a_j ≥ theta 的最长前缀(theta 随系统负载升高)。
+ * 真实 DSpark 是最大化吞吐 Θ=τ·SPS(B) 的贪心调度;这里用一个阈值近似
+ * 「负载越高 → theta 越高 → 验得越少」这件事。
+ */
+export function scheduleLength(confs, theta) {
+  const a = cumSurvival(confs)
+  let l = 0
+  for (let j = 0; j < a.length; j++) {
+    if (a[j] >= theta) l = j + 1
+    else break
+  }
+  return l
+}
+
+/**
  * 并行 drafter 的一次具体抽样:每个位置独立在两个「句意模式」间二选一。
  * 接受前缀 = 从头连续与首 token 同模式的长度(首次「串味」即被拒,其后全废)。
  * @param {number[]} seedRow 每位一个 [-1,1] 的种子数,符号决定选模式 0/1

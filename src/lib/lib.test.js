@@ -7,7 +7,7 @@ import { tokenize } from './tokenizer.js'
 import { seededMatrix } from './synth.js'
 import { colorFor, matrixWH, matmulLayout } from './figure.js'
 import { sinkhorn, rowSums, colSums, gainCurve, spectralRadius } from './manifold.js'
-import { acceptProbs, expectedAccept, speedup, parallelDraft } from './specdec.js'
+import { acceptProbs, expectedAccept, speedup, parallelDraft, cumSurvival, scheduleLength } from './specdec.js'
 import { ngramHash, allocLoss, ALLOC_OPTIMUM } from './engram.js'
 
 describe('tensor', () => {
@@ -189,5 +189,20 @@ describe('engram', () => {
     expect(allocLoss(ALLOC_OPTIMUM)).toBeLessThan(allocLoss(0))
     expect(allocLoss(ALLOC_OPTIMUM)).toBeLessThan(allocLoss(1))
     expect(allocLoss(1)).toBeGreaterThan(allocLoss(0)) // 全记忆比全计算还差
+  })
+})
+
+describe('specdec · confidence & scheduler', () => {
+  it('cumSurvival = 前缀连乘', () => {
+    expect(cumSurvival([0.9, 0.8, 0.5])).toEqual([0.9, 0.9 * 0.8, 0.9 * 0.8 * 0.5])
+  })
+  it('scheduleLength:阈值越高验得越少', () => {
+    const c = [0.95, 0.85, 0.6, 0.4]
+    expect(scheduleLength(c, 0)).toBe(4) // 全验
+    expect(scheduleLength(c, 0.99)).toBe(0) // a_1=0.95<0.99
+    const mid = scheduleLength(c, 0.5)
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(4)
+    expect(scheduleLength(c, 0.9)).toBeLessThanOrEqual(mid) // 阈值升→更短
   })
 })
