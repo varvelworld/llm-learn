@@ -63,8 +63,8 @@ export default function Ch20DSparkConf({ prev, next }) {
   )
 
   const confTex = `c_k=\\sigma\\big(w^{\\top}[\\,h_k;\\,e_{x_{k-1}}]\\big)\\in(0,1),\\qquad
-a_j=\\prod_{i\\le j}c_i\\;(\\text{前缀存活,单调}\\downarrow),\\qquad
-c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
+a_j=\\prod_{i\\le j}c_i,\\qquad
+c_k^{*}=1-\\tfrac12\\lVert p_d-p_t\\rVert_1`
 
   return (
     <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch20" title="DSpark(二)· 置信度打分" prev={prev} next={next}>

@@ -164,14 +164,12 @@ export default function Ch19DSpark({ prev, next }) {
     </label>
   )
 
-  const losslessTex = `\\underbrace{\\text{接受 }x\\text{ 的概率}=\\min\\!\\Big(1,\\tfrac{\\textcolor{#7ee787}{p_{\\text{大}}(x)}}{\\textcolor{#6ea8fe}{q_{\\text{草}}(x)}}\\Big)}_{\\text{大模型概率 ÷ 草稿概率}}
-\\;,\\;\\;
-\\underbrace{\\text{被拒 → 从 }(\\textcolor{#7ee787}{p_{\\text{大}}}-\\textcolor{#6ea8fe}{q_{\\text{草}}})_{+}\\text{ 补采}}_{\\text{大模型想要、草稿给少了的部分}}
-\\;\\Rightarrow\\;\\text{输出}\\equiv p_{\\text{大}}\\,(\\textbf{无损})`
-  const latencyTex = `L=\\frac{\\textcolor{#6ea8fe}{T_{\\text{draft}}}+\\textcolor{#f0a35e}{T_{\\text{verify}}}}{\\textcolor{#7ee787}{\\tau}}
-\\;\\Rightarrow\\;\\text{三杠杆:}\\;\\textcolor{#6ea8fe}{T_{\\text{draft}}\\!\\downarrow},\\;\\textcolor{#7ee787}{\\tau\\!\\uparrow},\\;\\textcolor{#f0a35e}{T_{\\text{verify}}\\!\\downarrow}`
-  const biasTex = `p_k(x_k\\mid x_0,x_{<k})=\\mathrm{softmax}\\big(\\textcolor{#6ea8fe}{U_k}+\\textcolor{#7ee787}{B_k(x_{<k})}\\big)
-\\quad\\substack{\\textcolor{#6ea8fe}{U_k:\\text{并行骨架基础分}}\\\\[2pt]\\textcolor{#7ee787}{B_k:\\text{串行块转移偏置}}}`
+  const losslessTex = `\\min\\!\\Big(1,\\ \\frac{\\textcolor{#7ee787}{p_t}(x)}{\\textcolor{#6ea8fe}{p_d}(x)}\\Big)
+\\qquad
+x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_x (\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}
+\\qquad\\Longrightarrow\\qquad x \\sim \\textcolor{#7ee787}{p_t}`
+  const latencyTex = `L=\\frac{\\textcolor{#6ea8fe}{T_{\\text{draft}}}+\\textcolor{#f0a35e}{T_{\\text{verify}}}}{\\textcolor{#7ee787}{\\tau}}`
+  const biasTex = `p_k(x_k\\mid x_0,x_{<k})=\\mathrm{softmax}\\big(\\textcolor{#6ea8fe}{U_k}+\\textcolor{#7ee787}{B_k(x_{<k})}\\big)`
 
   return (
     <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch19" title="DSpark(一)· 投机解码与半自回归" prev={prev} next={next}>
@@ -189,15 +187,19 @@ export default function Ch19DSpark({ prev, next }) {
         </p>
         <p>
           最妙的是<b>无损</b>:每字都经老板把关(下式的<b>拒绝采样</b>规则),最终输出<b>和大模型逐字写出来的一字不差</b>。
+          下式与论文记号一致——<Tex>{'p_t'}</Tex> = <b>大模型(target)分布</b>、<Tex>{'p_d'}</Tex> = <b>草稿(draft)分布</b>:
         </p>
-        <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
+        <div style={{ fontSize: 14, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
+        <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: '2px 0' }}>
+          三式从左到右:<b>接受概率</b>、<b>被拒时的补采分布</b>、<b>最终输出</b>(严格服从 <Tex>{'p_t'}</Tex>)。
+        </p>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0' }}>
-          <b>怎么读这条规则</b>:草稿先按自己的分布 <Tex>{'q_{\\text{草}}'}</Tex> 采了个字 <Tex>{'x'}</Tex>。
+          <b>怎么读这条规则</b>:草稿先按自己的分布 <Tex>{'p_d'}</Tex> 采了个字 <Tex>{'x'}</Tex>。
         </p>
         <ul style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 0 }}>
-          <li>若大模型对 <Tex>{'x'}</Tex> 的概率<b>不低于</b>草稿(<Tex>{'p_{\\text{大}}\\ge q_{\\text{草}}'}</Tex>)→ 比值 ≥1 → <b>直接收</b>(老板也至少这么想要它)。</li>
-          <li>若大模型概率<b>更低</b>(草稿过度偏爱)→ 只以 <Tex>{'p_{\\text{大}}/q_{\\text{草}}'}</Tex> 的概率收,<b>其余情况退回</b>。</li>
-          <li>一旦退回,就从「大模型想要、但草稿给少了」的<b>残差</b> <Tex>{'(p_{\\text{大}}-q_{\\text{草}})_{+}'}</Tex>(归一化)里<b>补采一个</b>字。</li>
+          <li>若大模型对 <Tex>{'x'}</Tex> 的概率<b>不低于</b>草稿(<Tex>{'p_t\\ge p_d'}</Tex>)→ 比值 ≥1 → <b>直接收</b>(老板也至少这么想要它)。</li>
+          <li>若大模型概率<b>更低</b>(草稿过度偏爱)→ 只以 <Tex>{'p_t/p_d'}</Tex> 的概率收,<b>其余情况退回</b>。</li>
+          <li>一旦退回,就从「大模型想要、但草稿给少了」的<b>残差</b> <Tex>{'(p_t-p_d)_{+}'}</Tex>(归一化)里<b>补采一个</b>字。</li>
         </ul>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '2px 0' }}>
           可以证明:这样产出的字,分布<b>严格等于</b>直接从大模型采样——所以<b>无损</b>。
