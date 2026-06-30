@@ -40,40 +40,53 @@ export default function Ch19DSpark({ prev, next }) {
     return { par, ePar: expectedAccept(C_PAR, L), eSar: expectedAccept(C_SAR, L), spPar: speedup(C_PAR, L), spSar: speedup(C_SAR, L) }
   }, [L])
 
-  // —— 图①:无损重建 p_t —— //
+  // —— 图①:无损 = 把 100% 概率质量摊平,拒回的量 = 补采的量 —— //
   const renderLossless = (cell) => {
     const cs = cell
-    const cw = Math.max(cs * 2.6, 78)
-    const lx = 40
-    const top = 22
-    const ph = cs * 3.3
-    const base = top + ph
-    const maxP = 0.5
-    const Y = (v) => base - (v / maxP) * ph
+    const acc = lo.acc // 接受率 = Σmin
+    const lx = 70
+    const top = 36
+    const barH = Math.max(cs * 1.0, 28)
+    const gap = Math.max(cs * 1.9, 54)
+    const Wbar = Math.max(300, cs * 10)
+    const x0 = lx
+    const accW = acc * Wbar
+    const remW = Wbar - accW
+    const y1 = top
+    const y2 = top + barH + gap
     const els = []
-    for (const t of [0, 0.25, 0.5]) {
-      els.push(<line key={`g${t}`} x1={lx} y1={Y(t)} x2={lx + LVOCAB.length * cw} y2={Y(t)} stroke={T.c.border} strokeWidth={0.5} strokeDasharray={t === 0 ? '' : '3 3'} />)
-      els.push(<text key={`gt${t}`} x={lx - 4} y={Y(t) + 3} textAnchor="end" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>{t}</text>)
+    els.push(<defs key="d"><marker id="lah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill={T.c.warn} /></marker></defs>)
+    const seg = (key, x, y, w, fill, op, label, pct, tc) => {
+      els.push(<rect key={`r${key}`} x={x} y={y} width={w} height={barH} fill={fill} opacity={op} stroke={T.c.border} strokeWidth={0.6} />)
+      if (w >= 34) {
+        els.push(<text key={`l${key}`} x={x + w / 2} y={y + barH / 2 - 1} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={tc}>{label}</text>)
+        els.push(<text key={`p${key}`} x={x + w / 2} y={y + barH / 2 + 11} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={tc}>{pct}</text>)
+      } else {
+        els.push(<text key={`p${key}`} x={x + w / 2} y={y - 3} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={fill === T.c.dim ? T.c.dim : T.c.accent2}>{label} {pct}</text>)
+      }
     }
-    for (let i = 0; i < LVOCAB.length; i++) {
-      const x = lx + i * cw
-      const pt = LP_T[i], pd = lo.pd[i], mn = Math.min(pt, pd)
-      const bw = cw * 0.3
-      const xd = x + cw * 0.1, xt = x + cw * 0.55
-      // 草稿 p_d:接受(0..mn 绿)+ 拒回(mn..pd 灰)
-      els.push(<rect key={`da${i}`} x={xd} y={Y(mn)} width={bw} height={base - Y(mn)} rx={2} fill={T.c.accent2} opacity={0.85} />)
-      if (pd > mn) els.push(<rect key={`dr${i}`} x={xd} y={Y(pd)} width={bw} height={Y(mn) - Y(pd)} rx={2} fill={T.c.dim} opacity={0.45} />)
-      els.push(<text key={`dl${i}`} x={xd + bw / 2} y={base + 12} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>p_d</text>)
-      // 大模型 p_t:接受(0..mn 绿)+ 补采(mn..pt 浅绿)
-      els.push(<rect key={`ta${i}`} x={xt} y={Y(mn)} width={bw} height={base - Y(mn)} rx={2} fill={T.c.accent2} opacity={0.85} />)
-      if (pt > mn) els.push(<rect key={`tr${i}`} x={xt} y={Y(pt)} width={bw} height={Y(mn) - Y(pt)} rx={2} fill={T.c.accent2} opacity={0.32} />)
-      els.push(<text key={`tl${i}`} x={xt + bw / 2} y={base + 12} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={T.c.accent2}>p_t</text>)
-      els.push(<text key={`w${i}`} x={x + cw / 2} y={base + 24} textAnchor="middle" fontFamily={T.font} fontSize={10} fontWeight={700} fill={T.c.text}>{LVOCAB[i]}</text>)
-    }
-    els.push(<text key="lg" x={lx} y={top - 9} fontFamily={T.font} fontSize={9} fill={T.c.dim}>
-      <tspan fill={T.c.accent2}>■ 接受(两柱重叠 min)</tspan>　<tspan fill={T.c.dim}>■ 草稿被拒回</tspan>　<tspan fill={T.c.accent2} opacity={0.6}>■ 补采填回</tspan></text>)
-    const W = lx + LVOCAB.length * cw + 8
-    const H = base + 30
+    const accPct = `${Math.round(acc * 100)}%`
+    const remPct = `${Math.round((1 - acc) * 100)}%`
+    els.push(<text key="ttl" x={lx - 8} y={y1 - 16} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>把整 100% 概率质量摊平比较:</text>)
+    // 草稿 p_d:接受(绿)+ 拒回(灰)
+    els.push(<text key="ld" x={lx - 8} y={y1 + barH / 2 + 4} textAnchor="end" fontFamily={T.font} fontSize={10.5} fill={T.c.dim}>草稿 p_d</text>)
+    seg('da', x0, y1, accW, T.c.accent2, 0.85, '接受', accPct, '#0b1410')
+    seg('dr', x0 + accW, y1, remW, T.c.dim, 0.5, '拒回', remPct, T.c.text)
+    // 大模型 p_t:接受(绿)+ 补采(浅绿)
+    els.push(<text key="lt" x={lx - 8} y={y2 + barH / 2 + 4} textAnchor="end" fontFamily={T.font} fontSize={10.5} fill={T.c.accent2}>大模型 p_t</text>)
+    seg('ta', x0, y2, accW, T.c.accent2, 0.85, '接受', accPct, '#0b1410')
+    seg('tr', x0 + accW, y2, remW, T.c.accent2, 0.32, '补采', remPct, T.c.accent2)
+    // 接受/剩余 的分界对齐虚线
+    els.push(<line key="div" x1={x0 + accW} y1={y1 - 6} x2={x0 + accW} y2={y2 + barH + 6} stroke={T.c.border} strokeWidth={1} strokeDasharray="3 3" />)
+    // 箭头:拒回的质量 → 等量补采
+    const gx = x0 + accW + remW / 2
+    els.push(<line key="arr" x1={gx} y1={y1 + barH + 3} x2={gx} y2={y2 - 3} stroke={T.c.warn} strokeWidth={1.5} markerEnd="url(#lah)" />)
+    els.push(<text key="arrl" x={x0 + accW - 8} y={(y1 + barH + y2) / 2 + 3} textAnchor="end" fontFamily={T.font} fontSize={9.5} fill={T.c.warn}>拒回 = 补采(等量)</text>)
+    // 0/100 刻度
+    els.push(<text key="z0" x={x0} y={y2 + barH + 16} fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>0%</text>)
+    els.push(<text key="z1" x={x0 + Wbar} y={y2 + barH + 16} textAnchor="end" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>100%</text>)
+    const W = x0 + Wbar + 16
+    const H = y2 + barH + 22
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
@@ -309,18 +322,19 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
         />
       </>
       <>
-        <h3>图① 无损:接受 + 补采 = 重建大模型分布 p_t</h3>
+        <h3>图① 无损:拒回多少 = 补采多少 → 重建 p_t</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          每个候选字画两根柱:左 <b style={{ color: 'var(--accent-2)' }}>p_d</b>(草稿)、右 <b style={{ color: 'var(--accent-2)' }}>p_t</b>(大模型)。
-          两柱<b>重叠的绿色</b>=直接<b>接受</b>;草稿多出来的<b style={{ color: 'var(--text-dim)' }}>灰色</b>=<b>拒回</b>;
-          大模型多出来的<b style={{ color: 'var(--accent-2)' }}>浅绿</b>=退回后<b>补采</b>填上。拖滑块:不管草稿多偏,
-          <b>右边 p_t 柱总被「接受+补采」精确重建</b>——这就是无损。
+          把草稿 <b>p_d</b>、大模型 <b>p_t</b> 各自的 <b>100% 概率质量</b>摊成一条横条对比:左边
+          <b style={{ color: 'var(--accent-2)' }}>绿色「接受」</b>两条一样宽(=两分布重叠、直接照收的部分);
+          右边那一截——草稿这条是多提议、要<b>「拒回」(灰)</b>的,大模型那条是缺、要
+          <b style={{ color: 'var(--accent-2)' }}>「补采」(浅绿)</b>的,而它俩<b>一样宽</b>。
+          所以<b>丢掉多少就补回多少</b>,最终分布精确等于 p_t——这就是无损。拖滑块:草稿越偏,绿色越窄、灰/浅绿越宽,但<b>永远等量</b>。
         </p>
         <FigureBoard renderSvg={renderLossless} baseCell={28} fullCell={38} controls={lossControls} />
         <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
-          当前偏离 <b style={{ color: 'var(--accent)' }}>{lossDelta}%</b>:直接<b style={{ color: 'var(--accent2)' }}>接受 {(lo.acc * 100).toFixed(0)}%</b>,
-          其余 <b>{((1 - lo.acc) * 100).toFixed(0)}%</b> 草稿被拒回、再由补采等量填回 → 输出分布 = p_t(无损)。
-          偏离越大,接受越少、补采越多,但<b>结果分布不变</b>。
+          当前偏离 <b style={{ color: 'var(--accent)' }}>{lossDelta}%</b>:直接<b style={{ color: 'var(--accent2)' }}>接受 {(lo.acc * 100).toFixed(0)}%</b>;
+          其余 <b>{((1 - lo.acc) * 100).toFixed(0)}%</b> 草稿被拒回,再<b>等量</b>补采填回 → 输出 = p_t。
+          偏离越大,接受越少、补采越多,但<b>结果分布不变(无损)</b>。
         </div>
 
         <h3 style={{ marginTop: 18 }}>图② 半自回归架构:并行骨架(重)+ 串行头(轻)</h3>
