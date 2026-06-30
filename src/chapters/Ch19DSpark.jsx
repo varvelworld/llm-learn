@@ -14,6 +14,9 @@ const C_PAR = 0.5 // 并行:块内独立 → 多峰碰撞,连贯概率 ~0.5
 const C_SAR = 0.85 // 半自回归:建模块内依赖 → 连贯概率更高
 const SEED = 8 // 让并行抽样在第 2 个 token 串味:'of'(A)+'problem'(B)="of problem" ✗
 
+// 图①:半自回归两阶段架构(锚点+mask → 并行骨架 → 串行头)
+const ATOK = ['E', 'F', 'G', 'H'] // γ=4 个草稿位置
+
 // 图②:置信度标签 = 草稿分布 p_d 与大模型分布 p_t 的「重叠」
 const VOCAB = ['cat', 'dog', 'fox', 'owl', 'ant']
 const P_T = [0.46, 0.27, 0.15, 0.08, 0.04] // 大模型分布(固定)
@@ -24,9 +27,10 @@ const DRAFT = ['E', 'F', 'G', 'H', 'I', 'J']
 const CONFS = [0.97, 0.88, 0.74, 0.58, 0.4, 0.26]
 
 export default function Ch19DSpark({ prev, next }) {
-  const [L, setL] = useState(8) // 图① 块长
-  const [delta, setDelta] = useState(30) // 图② 草稿与大模型的分歧 %
-  const [load, setLoad] = useState(35) // 图③ 系统负载 %
+  const [archStep, setArchStep] = useState(2) // 图① 串行头已采样到第几位
+  const [L, setL] = useState(8) // 图② 块长
+  const [delta, setDelta] = useState(30) // 图③ 草稿与大模型的分歧 %
+  const [load, setLoad] = useState(35) // 图④ 系统负载 %
 
   const ov = useMemo(() => {
     const dl = delta / 100
@@ -48,7 +52,70 @@ export default function Ch19DSpark({ prev, next }) {
     return { theta, a, l, tau }
   }, [load])
 
-  // —— 图①:并行串味 vs 半自回归连贯 —— //
+  // —— 图①:半自回归两阶段架构 —— //
+  const renderArch = (cell) => {
+    const cs = cell
+    const G = ATOK.length
+    const colW = Math.max(cs * 2.5, 76)
+    const lx = 14
+    const bh = cs * 0.9 // 单元高
+    const tag = (x, y, w, txt, fill, stroke, tc, fs = 11, bold) =>
+      els.push(
+        <rect key={`r${x}-${y}`} x={x} y={y} width={w} height={bh} rx={5} fill={fill} stroke={stroke} strokeWidth={1.2} />,
+        <text key={`t${x}-${y}`} x={x + w / 2} y={y + bh / 2 + 4} textAnchor="middle" fontFamily={T.font} fontSize={fs} fontWeight={bold ? 700 : 400} fill={tc}>{txt}</text>,
+      )
+    const vArrow = (x, y1, y2, col = T.c.dim) =>
+      els.push(<line key={`va${x}-${y1}`} x1={x} y1={y1} x2={x} y2={y2 - 4} stroke={col} strokeWidth={1.3} markerEnd="url(#ah)" />)
+    const colX = (i) => lx + i * colW
+    const colC = (i) => colX(i) + (colW - 6) / 2
+    const els = []
+    const cw = colW - 6
+    const y0 = 26 // 输入
+    const y1 = y0 + bh + 30 // 并行骨架
+    const y2 = y1 + bh + 26 // 基础分 U
+    const y3 = y2 + bh + 54 // 串行头 token
+    const W = lx + G * colW + 150
+    // marker
+    els.push(<defs key="defs"><marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.dim} /></marker></defs>)
+
+    // 行0:输入 = 锚点 D + (γ-1) 个 mask
+    els.push(<text key="il" x={lx} y={y0 - 8} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>输入:大模型给的锚点 + (γ−1) 个 mask</text>)
+    for (let i = 0; i < G; i++) {
+      const anchor = i === 0
+      tag(colX(i), y0, cw, anchor ? 'D(锚点)' : 'mask', anchor ? 'rgba(110,168,254,0.2)' : T.c.bgElev, anchor ? T.c.accent : T.c.border, anchor ? T.c.accent : T.c.dim, anchor ? 10 : 10)
+      vArrow(colC(i), y0 + bh, y1)
+    }
+    // 行1:并行骨架(一个大框,跨全宽)
+    els.push(<rect key="bb" x={lx} y={y1} width={G * colW - 6} height={bh} rx={7} fill="rgba(110,168,254,0.16)" stroke={T.c.accent} strokeWidth={1.6} />)
+    els.push(<text key="bbt" x={lx + (G * colW - 6) / 2} y={y1 + bh / 2 + 4} textAnchor="middle" fontFamily={T.font} fontSize={12} fontWeight={700} fill={T.c.accent}>并行骨架(重)· 一次前向,所有位置同时算</text>)
+    els.push(<text key="bbn" x={lx + G * colW + 6} y={y1 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.accent}>T_draft≈1 次<tspan x={lx + G * colW + 6} dy={12}>(与块长无关→快)</tspan></text>)
+    for (let i = 0; i < G; i++) vArrow(colC(i), y1 + bh, y2)
+    // 行2:基础分 U_k(各位置独立)
+    for (let i = 0; i < G; i++) tag(colX(i), y2, cw, `U${i + 1}`, T.c.bgElev, T.c.border, T.c.text, 11, true)
+    els.push(<text key="ul" x={lx + G * colW + 6} y={y2 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>基础分:同时产出<tspan x={lx + G * colW + 6} dy={12}>但各位置独立→会碰撞</tspan></text>)
+    // 行3:串行头(左→右),每步 U_k + B_k(前一字) 采样
+    els.push(<text key="sl" x={lx} y={y3 - 34} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>串行头(轻)· 左→右 · 每步 Uₖ + Bₖ(前一字) 再采样</text>)
+    for (let i = 0; i < G; i++) {
+      const done = i < archStep
+      vArrow(colC(i), y2 + bh, y3, done ? T.c.accent2 : T.c.border) // U_k 注入
+      tag(colX(i), y3, cw, done ? ATOK[i] : '?', done ? 'rgba(126,231,135,0.22)' : T.c.bgElev, done ? T.c.accent2 : T.c.border, done ? T.c.accent2 : T.c.dim, done ? 12 : 12, done)
+      // 依赖箭头:前一字 → 本字的偏置
+      if (i > 0) {
+        const x1 = colX(i - 1) + cw, x2 = colX(i)
+        const on = i < archStep // 目标字已采样,依赖才点亮
+        els.push(<path key={`dep${i}`} d={`M${x1},${y3} C${x1 + 14},${y3 - 18} ${x2 - 14},${y3 - 18} ${x2},${y3}`} fill="none"
+          stroke={on ? T.c.accent2 : T.c.border} strokeWidth={on ? 1.5 : 1} strokeDasharray={on ? '' : '3 3'} markerEnd={on ? 'url(#ah2)' : ''} />)
+        if (on) els.push(<text key={`bk${i}`} x={(x1 + x2) / 2} y={y3 - 20} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={T.c.accent2}>+B{i + 1}</text>)
+      }
+    }
+    els.push(<defs key="defs2"><marker id="ah2" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.accent2} /></marker></defs>)
+    els.push(<text key="snote" x={lx + G * colW + 6} y={y3 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>只注入依赖<tspan x={lx + G * colW + 6} dy={12}>极轻→连贯(τ↑)</tspan></text>)
+    els.push(<text key="out" x={lx} y={y3 + bh + 18} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>↓ 得到草稿块(再各配一个置信度 cₖ,见图③/④)</text>)
+    const H = y3 + bh + 28
+    return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
+  }
+
+  // —— 图②:并行串味 vs 半自回归连贯 —— //
   const renderBlock = (cell) => {
     const cs = cell
     const tw = Math.max(cs * 2.0, 58)
@@ -192,6 +259,14 @@ export default function Ch19DSpark({ prev, next }) {
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
+  const archControls = (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+      <span style={{ color: 'var(--text-dim)', width: 130 }}>串行头采样进度</span>
+      <input type="range" min={0} max={ATOK.length} step={1} value={archStep} onChange={(e) => setArchStep(+e.target.value)} style={{ width: 130 }} />
+      <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{archStep}/{ATOK.length}</b>
+      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{archStep === 0 ? '(并行已出基础分,串行未开始)' : archStep === ATOK.length ? '(整块草完)' : ''}</span>
+    </label>
+  )
   const blockControls = (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
       <span style={{ color: 'var(--text-dim)', width: 110 }}>块长 L(草几个)</span>
@@ -260,11 +335,11 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
             但 <b style={{ color: 'var(--accent)' }}>T_draft ∝ 块长</b>(越草越慢),只能草很短。</li>
           <li><b>并行</b>:所有位置<b>同时各写各的</b>,<b style={{ color: 'var(--accent)' }}>T_draft≈一次前向</b>(飞快)——
             但互相不看,<b style={{ color: 'var(--accent-2)' }}>τ 低</b>:回应既可「<b>of course</b>」也可「<b>no problem</b>」,
-            位置 1 挑 <b>of</b>、位置 2 挑 <b>problem</b>,拼成 <b style={{ color: 'var(--warn)' }}>“of problem”</b> ✗(<b>多峰碰撞</b>),越往后越易串味(图①)。</li>
+            位置 1 挑 <b>of</b>、位置 2 挑 <b>problem</b>,拼成 <b style={{ color: 'var(--warn)' }}>“of problem”</b> ✗(<b>多峰碰撞</b>),越往后越易串味(图②)。</li>
         </ul>
         <p>
-          <b>DSpark 的半自回归</b>:用<b>并行骨架</b>一次出每个位置的<b>基础分</b> <Tex>{'U_k'}</Tex>(保住 T_draft 快),
-          再挂一个<b>轻量串行块</b>给每个位置加一个<b>转移偏置</b> <Tex>{'B_k'}</Tex>——它看着已采样的前文:
+          <b>DSpark 的半自回归</b>(架构见<b>图①</b>):用<b>并行骨架</b>一次前向出每个位置的<b>基础分</b> <Tex>{'U_k'}</Tex>(保住 T_draft 快),
+          再挂一个<b>轻量串行头</b>给每个位置加一个<b>转移偏置</b> <Tex>{'B_k'}</Tex>——它<b>左→右</b>看着已采样的前文:
           采了「of」就给「course」<b>加分</b>、给「problem」<b>减分</b>,于是块内连贯、<b>τ 抬高</b>。
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{biasTex}</Tex></div>
@@ -286,12 +361,12 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
             <Tex>{'c_k^{*}=\\sum_x\\min(p_d,p_t)=1-\\tfrac12\\lVert p_d-p_t\\rVert_1'}</Tex>。用它当标签训练 <Tex>{'c_k'}</Tex> 去逼近。</li>
         </ul>
         <p>
-          直觉(图②):<b>草稿和大模型「想说同样的词」→ 两分布重叠大 → 几乎必过(c*→1)</b>;想法分歧大 → 重叠小 → 常被拒。
+          直觉(图③):<b>草稿和大模型「想说同样的词」→ 两分布重叠大 → 几乎必过(c*→1)</b>;想法分歧大 → 重叠小 → 常被拒。
           于是置信度头学会了<b>只看 <Tex>{'h_k'}</Tex> 和前一个字,就便宜地估出这个重叠率</b>,不必真去跑大模型。
         </p>
         <div style={{ fontSize: 13, overflowX: 'auto', margin: '6px 0' }}><Tex block>{confTex}</Tex></div>
         <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: '2px 0' }}>
-          把各位置的 <Tex>{'c_k'}</Tex> <b>连乘</b>得<b>前缀存活率</b> <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低,图③折线)。
+          把各位置的 <Tex>{'c_k'}</Tex> <b>连乘</b>得<b>前缀存活率</b> <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低,图④折线)。
           神经网络的置信度常<b>过于自信</b>,所以再做一次校准(STS),让 <Tex>{'c_k'}</Tex> 的<b>绝对数值</b>可信,好给第 3 步算吞吐。
         </p>
 
@@ -308,7 +383,7 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
         <div style={{ fontSize: 13, overflowX: 'auto', margin: '6px 0' }}><Tex block>{schedTex}</Tex></div>
         <p>
           直观就是:<b style={{ color: 'var(--accent-2)' }}>空闲时多验</b>(尽量长)、
-          <b style={{ color: 'var(--warn)' }}>繁忙时只验高把握的前缀、砍掉低置信尾巴</b> → 压住 T_verify(图③拖负载看截断线移动)。
+          <b style={{ color: 'var(--warn)' }}>繁忙时只验高把握的前缀、砍掉低置信尾巴</b> → 压住 T_verify(图④拖负载看截断线移动)。
         </p>
 
         <div className="note">
@@ -317,9 +392,9 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
           <b>不改模型架构、不改输出分布</b>;训练/评测代码库 <b>DeepSpec</b> 已开源(含 DSpark/DFlash/Eagle3)。
         </div>
         <div className="note" style={{ marginTop: 8 }}>
-          <b>诚实简化</b>:图① 把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>(并行≈0.5、半自回归更高),其「加速比=τ+1」只演示杠杆②;
-          图② 的 <Tex>{'p_d'}</Tex> 用「与 <Tex>{'p_t'}</Tex> 的混合」近似草稿跑偏;
-          图③ 的调度用「负载→阈值 θ,保留 <Tex>{'a_j\\ge\\theta'}</Tex> 的前缀」近似真实的 <Tex>{'\\Theta'}</Tex> 贪心最大化。结论方向一致。
+          <b>诚实简化</b>:图① 是架构示意(略去 KV 注入、mask 细节);图② 把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>(并行≈0.5、半自回归更高),其「加速比=τ+1」只演示杠杆②;
+          图③ 的 <Tex>{'p_d'}</Tex> 用「与 <Tex>{'p_t'}</Tex> 的混合」近似草稿跑偏;
+          图④ 的调度用「负载→阈值 θ,保留 <Tex>{'a_j\\ge\\theta'}</Tex> 的前缀」近似真实的 <Tex>{'\\Theta'}</Tex> 贪心最大化。结论方向一致。
         </div>
         <Refs
           ids={['2211.17192', '2302.01318', '1711.02281', '2401.10774', '2401.15077', '2606.19348']}
@@ -330,7 +405,15 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
         />
       </>
       <>
-        <h3>图① 半自回归:并行「串味」截断 vs DSpark 块内连贯</h3>
+        <h3>图① 半自回归架构:并行骨架(重)+ 串行头(轻)</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+          自上而下:大模型给的<b>锚点 D + mask</b> → <b style={{ color: 'var(--accent)' }}>并行骨架一次前向</b>同时算出所有位置的基础分 <b>Uₖ</b>
+          (快,但各位置独立→会碰撞)→ <b style={{ color: 'var(--accent-2)' }}>串行头左→右</b>逐位把 <b>Uₖ + Bₖ(前一字)</b> 再采样
+          (极轻,注入依赖→连贯)。拖「采样进度」看串行头一格格填、依赖箭头一段段接上。
+        </p>
+        <FigureBoard renderSvg={renderArch} baseCell={28} fullCell={38} controls={archControls} />
+
+        <h3 style={{ marginTop: 18 }}>图② 半自回归的效果:并行「串味」截断 vs 块内连贯</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
           上两行是两种合理说法(句意 A / B)。「并行草」每位独立采样,采到第 {d.par.firstCollision + 1} 个就串味
           (<b style={{ color: 'var(--hot,#ff6b6b)' }}>✗</b>)、其后全被拒;「DSpark」块内有依赖、保持连贯。
@@ -342,7 +425,7 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
           DSpark <b style={{ color: 'var(--accent2)' }}>{d.eSar.toFixed(2)}</b>(加速 {d.spSar.toFixed(1)}×,随块长涨)。
         </div>
 
-        <h3 style={{ marginTop: 18 }}>图② 置信度的「标签」从哪来:重叠 = 接受率</h3>
+        <h3 style={{ marginTop: 18 }}>图③ 置信度的「标签」从哪来:重叠 = 接受率</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
           蓝实线是大模型分布 <b style={{ color: 'var(--accent)' }}>p_t</b>、绿虚线是草稿分布 <b style={{ color: 'var(--accent-2)' }}>p_d</b>;
           <b style={{ color: 'var(--accent-2)' }}>绿色 = 两者重叠</b>(会被接受)、<b style={{ color: 'var(--hot,#ff6b6b)' }}>红色 = 分歧</b>(可能被拒)。
@@ -354,7 +437,7 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
           {delta < 15 ? '(草稿≈大模型,几乎必过)' : delta > 70 ? '(草稿跑偏,常被拒)' : ''}。置信度头学的就是这个数。
         </div>
 
-        <h3 style={{ marginTop: 18 }}>图③ 动态调度:按负载决定验证几个</h3>
+        <h3 style={{ marginTop: 18 }}>图④ 动态调度:按负载决定验证几个</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
           一块草稿 E…J,实心条是各位置置信度 <b style={{ color: 'var(--accent-2)' }}>cₖ</b>、折线是前缀存活 <b style={{ color: 'var(--accent)' }}>aⱼ</b>(越靠后越低)。
           拖<b>系统负载</b>:负载越高、阈值 <b style={{ color: 'var(--warn)' }}>θ</b> 越高,<b style={{ color: 'var(--hot,#ff6b6b)' }}>截断线</b>左移、验证的字更少(只留高把握前缀)。
