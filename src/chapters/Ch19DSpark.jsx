@@ -67,11 +67,12 @@ export default function Ch19DSpark({ prev, next }) {
     }
     const accPct = `${Math.round(acc * 100)}%`
     const remPct = `${Math.round((1 - acc) * 100)}%`
-    els.push(<text key="ttl" x={lx - 8} y={y1 - 16} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>把整 100% 概率质量摊平比较:</text>)
-    // 草稿 p_d:接受(绿)+ 拒回(灰)
+    els.push(<text key="ttl" x={lx - 8} y={y1 - 16} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>
+      <tspan fill={T.c.accent2}>接受 accept</tspan> · <tspan fill={T.c.dim}>拒绝 reject</tspan> · <tspan fill={T.c.accent2}>补采 resample(重采一个字)</tspan></text>)
+    // 草稿 p_d:接受(绿)+ 拒绝(灰)
     els.push(<text key="ld" x={lx - 8} y={y1 + barH / 2 + 4} textAnchor="end" fontFamily={T.font} fontSize={10.5} fill={T.c.dim}>草稿 p_d</text>)
     seg('da', x0, y1, accW, T.c.accent2, 0.85, '接受', accPct, '#0b1410')
-    seg('dr', x0 + accW, y1, remW, T.c.dim, 0.5, '拒回', remPct, T.c.text)
+    seg('dr', x0 + accW, y1, remW, T.c.dim, 0.5, '拒绝', remPct, T.c.text)
     // 大模型 p_t:接受(绿)+ 补采(浅绿)
     els.push(<text key="lt" x={lx - 8} y={y2 + barH / 2 + 4} textAnchor="end" fontFamily={T.font} fontSize={10.5} fill={T.c.accent2}>大模型 p_t</text>)
     seg('ta', x0, y2, accW, T.c.accent2, 0.85, '接受', accPct, '#0b1410')
@@ -81,7 +82,7 @@ export default function Ch19DSpark({ prev, next }) {
     // 箭头:拒回的质量 → 等量补采
     const gx = x0 + accW + remW / 2
     els.push(<line key="arr" x1={gx} y1={y1 + barH + 3} x2={gx} y2={y2 - 3} stroke={T.c.warn} strokeWidth={1.5} markerEnd="url(#lah)" />)
-    els.push(<text key="arrl" x={x0 + accW - 8} y={(y1 + barH + y2) / 2 + 3} textAnchor="end" fontFamily={T.font} fontSize={9.5} fill={T.c.warn}>拒回 = 补采(等量)</text>)
+    els.push(<text key="arrl" x={x0 + accW - 8} y={(y1 + barH + y2) / 2 + 3} textAnchor="end" fontFamily={T.font} fontSize={9.5} fill={T.c.warn}>拒绝量 = 补采量</text>)
     // 0/100 刻度
     els.push(<text key="z0" x={x0} y={y2 + barH + 16} fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>0%</text>)
     els.push(<text key="z1" x={x0 + Wbar} y={y2 + barH + 16} textAnchor="end" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>100%</text>)
@@ -261,23 +262,29 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
         </p>
         <div style={{ fontSize: 14, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
         <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: '2px 0' }}>
-          三式从左到右:<b>接受概率</b>、<b>被拒时的补采分布</b>、<b>最终输出</b>(严格服从 <Tex>{'p_t'}</Tex>)。
+          三式从左到右:<b>接受概率(accept prob)</b>、<b>被拒后的补采分布(resample)</b>、<b>最终输出</b>(严格服从 <Tex>{'p_t'}</Tex>)。
         </p>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0' }}>
           <b>怎么读这条规则</b>:草稿先按自己的分布 <Tex>{'p_d'}</Tex> 采了个字 <Tex>{'x'}</Tex>。
         </p>
         <ul style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 0 }}>
-          <li>若大模型对 <Tex>{'x'}</Tex> 的概率<b>不低于</b>草稿(<Tex>{'p_t\\ge p_d'}</Tex>)→ 比值 ≥1 → <b>直接收</b>(老板也至少这么想要它)。</li>
-          <li>若大模型概率<b>更低</b>(草稿过度偏爱)→ 只以 <Tex>{'p_t/p_d'}</Tex> 的概率收,<b>其余情况退回</b>。</li>
-          <li>一旦退回,就从「大模型想要、但草稿给少了」的<b>残差</b> <Tex>{'(p_t-p_d)_{+}'}</Tex>(归一化)里<b>补采一个</b>字。</li>
+          <li>若大模型对 <Tex>{'x'}</Tex> 的概率<b>不低于</b>草稿(<Tex>{'p_t\\ge p_d'}</Tex>)→ 比值 ≥1 → <b>直接接受(accept)</b>(老板也至少这么想要它)。</li>
+          <li>若大模型概率<b>更低</b>(草稿过度偏爱)→ 只以 <Tex>{'p_t/p_d'}</Tex> 的概率接受,<b>其余情况拒绝(reject)退回</b>。</li>
+          <li>一旦退回,这个位置<b>总得吐一个字</b>(不能空着),但不能再用草稿(会把偏差带回来)。
+            于是<b>改从「大模型想要、但草稿给少了」的字里、按缺口大小重新采一个</b>——这一步叫
+            <b>补采(resample)</b>,采样分布就是残差 <Tex>{'(p_t-p_d)_{+}'}</Tex>(归一化)。</li>
         </ul>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0' }}>
+          一句话:草稿在某些字上<b>给多了</b>(按比例拒绝),就把这部分概率<b>挪去补</b>那些<b>给少了</b>的字(补采)。
+          一多一少正好抵消——图①里那根橙箭头(<b style={{ color: 'var(--warn)' }}>拒绝量 → 补采量</b>)画的就是这个「挪」。
+        </p>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '2px 0' }}>
           可以证明:这样产出的字,分布<b>严格等于</b>直接从大模型采样——所以<b>无损</b>(<b>图①</b>把这条规则画了出来:接受+补采正好重建 p_t)。
           (接受概率见 DSpark 论文 §2.1;补采那步与无损证明来自投机采样:Leviathan 2023 / Chen 2023。)
         </p>
         <p>
           那提速由什么决定?把「每个字的平均耗时」拆开,就是 DSpark 的<b>总纲</b>(论文公式 1):一轮<b>草稿</b>花
-          <Tex>{'T_{\\text{draft}}'}</Tex>、<b>验证</b>花 <Tex>{'T_{\\text{verify}}'}</Tex>,这一轮敲定 <Tex>{'\\tau'}</Tex> 个字(<b>接受长度</b>):
+          <Tex>{'T_{\\text{draft}}'}</Tex>、<b>验证</b>花 <Tex>{'T_{\\text{verify}}'}</Tex>,这一轮敲定 <Tex>{'\\tau'}</Tex> 个字(<b>接受长度 accept length</b>):
         </p>
         <div style={{ fontSize: 14, overflowX: 'auto', margin: '6px 0' }}><Tex block>{latencyTex}</Tex></div>
         <p>
@@ -322,18 +329,18 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
         />
       </>
       <>
-        <h3>图① 无损:拒回多少 = 补采多少 → 重建 p_t</h3>
+        <h3>图① 无损:拒绝多少 = 补采多少 → 重建 p_t</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
           把草稿 <b>p_d</b>、大模型 <b>p_t</b> 各自的 <b>100% 概率质量</b>摊成一条横条对比:左边
-          <b style={{ color: 'var(--accent-2)' }}>绿色「接受」</b>两条一样宽(=两分布重叠、直接照收的部分);
-          右边那一截——草稿这条是多提议、要<b>「拒回」(灰)</b>的,大模型那条是缺、要
-          <b style={{ color: 'var(--accent-2)' }}>「补采」(浅绿)</b>的,而它俩<b>一样宽</b>。
+          <b style={{ color: 'var(--accent-2)' }}>绿色「接受 accept」</b>两条一样宽(=两分布重叠、直接照收的部分);
+          右边那一截——草稿这条是多提议、要<b>「拒绝 reject」(灰)</b>掉的,大模型那条是缺、要
+          <b style={{ color: 'var(--accent-2)' }}>「补采 resample」(浅绿)</b>的,而它俩<b>一样宽</b>。
           所以<b>丢掉多少就补回多少</b>,最终分布精确等于 p_t——这就是无损。拖滑块:草稿越偏,绿色越窄、灰/浅绿越宽,但<b>永远等量</b>。
         </p>
         <FigureBoard renderSvg={renderLossless} baseCell={28} fullCell={38} controls={lossControls} />
         <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
           当前偏离 <b style={{ color: 'var(--accent)' }}>{lossDelta}%</b>:直接<b style={{ color: 'var(--accent2)' }}>接受 {(lo.acc * 100).toFixed(0)}%</b>;
-          其余 <b>{((1 - lo.acc) * 100).toFixed(0)}%</b> 草稿被拒回,再<b>等量</b>补采填回 → 输出 = p_t。
+          其余 <b>{((1 - lo.acc) * 100).toFixed(0)}%</b> 草稿被<b>拒绝(reject)</b>,再<b>等量</b>补采(resample)填回 → 输出 = p_t。
           偏离越大,接受越少、补采越多,但<b>结果分布不变(无损)</b>。
         </div>
 

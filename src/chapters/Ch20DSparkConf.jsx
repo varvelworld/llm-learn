@@ -90,7 +90,7 @@ c_k^{*}=1-\\tfrac12\\lVert p_d-p_t\\rVert_1`
         </p>
         <div style={{ fontSize: 13, overflowX: 'auto', margin: '6px 0' }}><Tex block>{confTex}</Tex></div>
         <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: '2px 0' }}>
-          把各位置的 <Tex>{'c_k'}</Tex> <b>连乘</b>得<b>前缀存活率</b> <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低)——下一章的调度就靠它。
+          把各位置的 <Tex>{'c_k'}</Tex> <b>连乘</b>得<b>前缀存活率(prefix survival)</b> <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低)——下一章的调度就靠它。
           另:神经网络的置信度常<b>过于自信</b>,所以再做一次校准(STS),让 <Tex>{'c_k'}</Tex> 的<b>绝对数值</b>可信,好用来算吞吐。
         </p>
         <div className="note">

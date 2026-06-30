@@ -78,7 +78,7 @@ export default function Ch21DSparkSched({ prev, next }) {
     <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch21" title="DSpark(三)· 动态调度" prev={prev} next={next}>
       <>
         <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>
-          上一章的<b>置信度头</b>给了每个草稿字「能过审的把握」<Tex>{'c_k'}</Tex>,以及前缀存活
+          上一章的<b>置信度头</b>给了每个草稿字「能过审的把握」<Tex>{'c_k'}</Tex>,以及前缀存活(prefix survival)
           <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低)。本章用它压住最后一条杠杆——<b>验证省(↓T_verify)</b>。
         </p>
         <h2>验证几个,要看系统忙不忙</h2>
