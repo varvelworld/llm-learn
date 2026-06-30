@@ -21,6 +21,8 @@ import Ch16CSAHCA from './Ch16CSAHCA.jsx'
 import Ch17MHC from './Ch17MHC.jsx'
 import Ch18Engram from './Ch18Engram.jsx'
 import Ch19DSpark from './Ch19DSpark.jsx'
+import Ch20DSparkConf from './Ch20DSparkConf.jsx'
+import Ch21DSparkSched from './Ch21DSparkSched.jsx'
 import G1GlmOverview from './G1GlmOverview.jsx'
 import G2GlmQKNorm from './G2GlmQKNorm.jsx'
 import G5GlmIndexShare from './G5GlmIndexShare.jsx'
@@ -49,8 +51,10 @@ export const CHAPTERS = [
   { num: 16, slug: 'csa-hca', title: 'CSA + HCA 混合注意力', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch16CSAHCA },
   { num: 17, slug: 'mhc', title: 'mHC 流形超连接', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch17MHC },
   { num: 18, slug: 'engram', title: 'Engram 记忆', part: 'deepseek', group: 'V4 · 长上下文与稀疏', Component: Ch18Engram },
-  { num: 19, slug: 'dspark', title: 'DSpark 投机解码', part: 'deepseek', group: 'V4 · 推理加速', Component: Ch19DSpark },
-  { num: 20, slug: 'deepseek', title: '全景总览 · V2→V4', part: 'deepseek', group: '收尾', Component: null },
+  { num: 19, slug: 'dspark', title: 'DSpark① 投机解码·半自回归', part: 'deepseek', group: 'V4 · 推理加速', Component: Ch19DSpark },
+  { num: 20, slug: 'dspark-conf', title: 'DSpark② 置信度打分', part: 'deepseek', group: 'V4 · 推理加速', Component: Ch20DSparkConf },
+  { num: 21, slug: 'dspark-sched', title: 'DSpark③ 动态调度', part: 'deepseek', group: 'V4 · 推理加速', Component: Ch21DSparkSched },
+  { num: 22, slug: 'deepseek', title: '全景总览 · V2→V4', part: 'deepseek', group: '收尾', Component: null },
   { num: 'G1', slug: 'glm-overview', title: 'GLM 渊源与演进', part: 'glm', Component: G1GlmOverview },
   { num: 'G2', slug: 'glm-qknorm', title: 'QK-Norm', part: 'glm', Component: G2GlmQKNorm },
   { num: 'G3', slug: 'glm-rope-gqa', title: '部分 RoPE + GQA', part: 'glm', Component: null },

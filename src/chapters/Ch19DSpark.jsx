@@ -5,9 +5,9 @@ import Tex from '../components/Tex.jsx'
 import Refs from '../components/Refs.jsx'
 import { T } from '../components/svg/theme.js'
 import { seededMatrix } from '../lib/synth.js'
-import { expectedAccept, speedup, parallelDraft, cumSurvival, scheduleLength, overlap } from '../lib/specdec.js'
+import { expectedAccept, speedup, parallelDraft } from '../lib/specdec.js'
 
-// 图①:两个互斥「句意模式」(逐位都不同,混着取就串味)
+// 图②:两个互斥「句意模式」(逐位都不同,混着取就串味)
 const MODE_A = ['of', 'course', 'I', 'can', 'solve', 'this', 'for', 'you']
 const MODE_B = ['no', 'problem', 'we', 'will', 'handle', 'that', 'right', 'now']
 const C_PAR = 0.5 // 并行:块内独立 → 多峰碰撞,连贯概率 ~0.5
@@ -17,26 +17,9 @@ const SEED = 8 // 让并行抽样在第 2 个 token 串味:'of'(A)+'problem'(B)=
 // 图①:半自回归两阶段架构(锚点+mask → 并行骨架 → 串行头)
 const ATOK = ['E', 'F', 'G', 'H'] // γ=4 个草稿位置
 
-// 图②:置信度标签 = 草稿分布 p_d 与大模型分布 p_t 的「重叠」
-const VOCAB = ['cat', 'dog', 'fox', 'owl', 'ant']
-const P_T = [0.46, 0.27, 0.15, 0.08, 0.04] // 大模型分布(固定)
-const OTHER = [0.04, 0.08, 0.15, 0.27, 0.46] // 另一头的分布(草稿"跑偏"时趋向它)
-
-// 图③:一块草稿的逐位置信度(越靠后越低)
-const DRAFT = ['E', 'F', 'G', 'H', 'I', 'J']
-const CONFS = [0.97, 0.88, 0.74, 0.58, 0.4, 0.26]
-
 export default function Ch19DSpark({ prev, next }) {
   const [archStep, setArchStep] = useState(2) // 图① 串行头已采样到第几位
   const [L, setL] = useState(8) // 图② 块长
-  const [delta, setDelta] = useState(30) // 图③ 草稿与大模型的分歧 %
-  const [load, setLoad] = useState(35) // 图④ 系统负载 %
-
-  const ov = useMemo(() => {
-    const dl = delta / 100
-    const pd = P_T.map((v, i) => (1 - dl) * v + dl * OTHER[i]) // 仍是合法分布(两者都和为1)
-    return { pd, cstar: overlap(pd, P_T) }
-  }, [delta])
 
   const d = useMemo(() => {
     const row = seededMatrix(1, 8, SEED)[0]
@@ -44,21 +27,13 @@ export default function Ch19DSpark({ prev, next }) {
     return { par, ePar: expectedAccept(C_PAR, L), eSar: expectedAccept(C_SAR, L), spPar: speedup(C_PAR, L), spSar: speedup(C_SAR, L) }
   }, [L])
 
-  const sched = useMemo(() => {
-    const theta = (load / 100) * 0.95 // 负载越高 → 阈值越高 → 验得越少
-    const a = cumSurvival(CONFS)
-    const l = scheduleLength(CONFS, theta)
-    const tau = 1 + a.slice(0, l).reduce((s, x) => s + x, 0)
-    return { theta, a, l, tau }
-  }, [load])
-
   // —— 图①:半自回归两阶段架构 —— //
   const renderArch = (cell) => {
     const cs = cell
     const G = ATOK.length
     const colW = Math.max(cs * 2.6, 84)
     const lx = 14
-    const bh = cs * 0.9 // 单元高
+    const bh = cs * 0.9
     const nw = colW * 0.66 // U / token 节点宽(居中,留出横向箭头空隙)
     const iw = colW * 0.84 // 输入节点宽
     const els = []
@@ -70,10 +45,7 @@ export default function Ch19DSpark({ prev, next }) {
       )
     const vArrow = (x, y1, y2, col = T.c.dim) =>
       els.push(<line key={`va${x}-${y1}`} x1={x} y1={y1} x2={x} y2={y2 - 4} stroke={col} strokeWidth={1.3} markerEnd="url(#ah)" />)
-    const y0 = 26 // 输入
-    const y1 = y0 + bh + 30 // 并行骨架
-    const y2 = y1 + bh + 26 // 基础分 U
-    const y3 = y2 + bh + 42 // 串行头 token
+    const y0 = 26, y1 = y0 + bh + 30, y2 = y1 + bh + 26, y3 = y2 + bh + 42
     const right = lx + G * colW
     const W = right + 150
     els.push(
@@ -82,30 +54,25 @@ export default function Ch19DSpark({ prev, next }) {
         <marker id="ah2" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.accent2} /></marker>
       </defs>,
     )
-    // 行0:输入 = 锚点 D + (γ-1) 个 mask
     els.push(<text key="il" x={lx} y={y0 - 8} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>输入:大模型给的锚点 + (γ−1) 个 mask</text>)
     for (let i = 0; i < G; i++) {
       const anchor = i === 0
       box(`in${i}`, cx(i), y0, iw, anchor ? 'D(锚点)' : 'mask', anchor ? 'rgba(110,168,254,0.2)' : T.c.bgElev, anchor ? T.c.accent : T.c.border, anchor ? T.c.accent : T.c.dim, 10)
       vArrow(cx(i), y0 + bh, y1)
     }
-    // 行1:并行骨架(一个大框,跨全宽)
     els.push(<rect key="bb" x={lx} y={y1} width={G * colW - 6} height={bh} rx={7} fill="rgba(110,168,254,0.16)" stroke={T.c.accent} strokeWidth={1.6} />)
     els.push(<text key="bbt" x={lx + (G * colW - 6) / 2} y={y1 + bh / 2 + 4} textAnchor="middle" fontFamily={T.font} fontSize={12} fontWeight={700} fill={T.c.accent}>并行骨架(重)· 一次前向,所有位置同时算</text>)
     els.push(<text key="bbn" x={right + 6} y={y1 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.accent}>T_draft≈1 次<tspan x={right + 6} dy={12}>(与块长无关→快)</tspan></text>)
     for (let i = 0; i < G; i++) vArrow(cx(i), y1 + bh, y2)
-    // 行2:基础分 U_k(各位置独立)
     for (let i = 0; i < G; i++) box(`u${i}`, cx(i), y2, nw, `U${i + 1}`, T.c.bgElev, T.c.border, T.c.text, 11, true)
     els.push(<text key="ul" x={right + 6} y={y2 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>基础分:同时产出<tspan x={right + 6} dy={12}>但各位置独立→会碰撞</tspan></text>)
-    // 行3:串行头(左→右),每步 U_k + B_k(前一字) 采样
     els.push(<text key="sl" x={lx} y={y3 - 12} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>串行头(轻)· 左→右 · 每步 Uₖ + Bₖ(前一字) 再采样</text>)
     const ymid = y3 + bh / 2
     for (let i = 0; i < G; i++) {
       const done = i < archStep
-      vArrow(cx(i), y2 + bh, y3, done ? T.c.accent2 : T.c.border) // U_k 注入(从上)
-      // 依赖横箭头:前一字 → 本字(从左),画在框之前,避免压住框
+      vArrow(cx(i), y2 + bh, y3, done ? T.c.accent2 : T.c.border)
       if (i > 0) {
-        const on = i < archStep // 目标字已采样,依赖才点亮
+        const on = i < archStep
         const xa = cx(i - 1) + nw / 2 + 2
         const xb = cx(i) - nw / 2
         els.push(<line key={`dep${i}`} x1={xa} y1={ymid} x2={xb - 2} y2={ymid} stroke={on ? T.c.accent2 : T.c.border} strokeWidth={on ? 1.6 : 1} strokeDasharray={on ? '' : '3 3'} markerEnd={on ? 'url(#ah2)' : ''} />)
@@ -114,7 +81,7 @@ export default function Ch19DSpark({ prev, next }) {
       box(`tk${i}`, cx(i), y3, nw, done ? ATOK[i] : '?', done ? 'rgba(126,231,135,0.22)' : T.c.bgElev, done ? T.c.accent2 : T.c.border, done ? T.c.accent2 : T.c.dim, 12, done)
     }
     els.push(<text key="snote" x={right + 6} y={ymid} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>只注入依赖<tspan x={right + 6} dy={12}>极轻→连贯(τ↑)</tspan></text>)
-    els.push(<text key="out" x={lx} y={y3 + bh + 18} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>↓ 得到草稿块(再各配一个置信度 cₖ,见图③/④)</text>)
+    els.push(<text key="out" x={lx} y={y3 + bh + 18} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>↓ 得到草稿块(再各配一个置信度 cₖ,见后两章)</text>)
     const H = y3 + bh + 28
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
@@ -181,88 +148,6 @@ export default function Ch19DSpark({ prev, next }) {
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
-  // —— 图②:置信度标签 = 重叠面积(接受率) —— //
-  const renderOverlap = (cell) => {
-    const cs = cell
-    const cw = Math.max(cs * 2.0, 60)
-    const lx = 36
-    const top = 24
-    const ph = cs * 3.6
-    const base = top + ph
-    const maxP = 0.5
-    const Y = (v) => base - (v / maxP) * ph
-    const els = []
-    for (const t of [0, 0.25, 0.5]) {
-      els.push(<line key={`g${t}`} x1={lx} y1={Y(t)} x2={lx + VOCAB.length * cw} y2={Y(t)} stroke={T.c.border} strokeWidth={0.5} strokeDasharray={t === 0 ? '' : '3 3'} />)
-      els.push(<text key={`gt${t}`} x={lx - 4} y={Y(t) + 3} textAnchor="end" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>{t}</text>)
-    }
-    for (let i = 0; i < VOCAB.length; i++) {
-      const x = lx + i * cw
-      const pt = P_T[i], pd = ov.pd[i]
-      const mn = Math.min(pt, pd), mx = Math.max(pt, pd)
-      const bw = cw * 0.62, bx = x + (cw - bw) / 2
-      // 重叠部分(0..min)=绿,接受;分歧部分(min..max)=红faint
-      els.push(<rect key={`ov${i}`} x={bx} y={Y(mn)} width={bw} height={base - Y(mn)} rx={2} fill={T.c.accent2} opacity={0.7} />)
-      els.push(<rect key={`gap${i}`} x={bx} y={Y(mx)} width={bw} height={Y(mn) - Y(mx)} fill={T.c.hot} opacity={0.28} />)
-      // p_t / p_d 水平刻度
-      els.push(<line key={`pt${i}`} x1={bx - 4} y1={Y(pt)} x2={bx + bw + 4} y2={Y(pt)} stroke={T.c.accent} strokeWidth={1.6} />)
-      els.push(<line key={`pd${i}`} x1={bx - 4} y1={Y(pd)} x2={bx + bw + 4} y2={Y(pd)} stroke={T.c.accent2} strokeWidth={1.6} strokeDasharray="3 2" />)
-      els.push(<text key={`w${i}`} x={x + cw / 2} y={base + 13} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.dim}>{VOCAB[i]}</text>)
-    }
-    els.push(<text key="lg" x={lx} y={top - 10} fontFamily={T.font} fontSize={9} fill={T.c.dim}>
-      <tspan fill={T.c.accent}>━ p_t 大模型</tspan>　<tspan fill={T.c.accent2}>┄ p_d 草稿</tspan>
-      <tspan fill={T.c.accent2}>绿=重叠(接受)</tspan>　<tspan fill={T.c.hot}>红=分歧</tspan></text>)
-    const W = lx + VOCAB.length * cw + 8
-    const H = base + 22
-    return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
-  }
-
-  // —— 图③:置信度打分 + 按负载调度验证长度 —— //
-  const renderSched = (cell) => {
-    const cs = cell
-    const cw = Math.max(cs * 1.7, 50)
-    const lx = 40
-    const top = 20
-    const ph = cs * 3.4 // 绘图高
-    const base = top + ph
-    const els = []
-    const Y = (v) => base - v * ph
-    // y 轴刻度 0 / 0.5 / 1
-    for (const t of [0, 0.5, 1]) {
-      els.push(<line key={`gl${t}`} x1={lx} y1={Y(t)} x2={lx + DRAFT.length * cw} y2={Y(t)} stroke={T.c.border} strokeWidth={0.5} strokeDasharray={t === 0 ? '' : '3 3'} />)
-      els.push(<text key={`gt${t}`} x={lx - 4} y={Y(t) + 3} textAnchor="end" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>{t}</text>)
-    }
-    // 阈值线 θ
-    els.push(<line key="th" x1={lx} y1={Y(sched.theta)} x2={lx + DRAFT.length * cw} y2={Y(sched.theta)} stroke={T.c.warn} strokeWidth={1.2} strokeDasharray="5 3" />)
-    els.push(<text key="thl" x={lx + DRAFT.length * cw + 4} y={Y(sched.theta) + 3} fontFamily={T.font} fontSize={9} fill={T.c.warn}>θ={sched.theta.toFixed(2)}</text>)
-    // 每个 token:置信度条 c_k + 前缀存活点 a_j
-    const aPts = []
-    for (let i = 0; i < DRAFT.length; i++) {
-      const x = lx + i * cw
-      const verify = i < sched.l
-      const c = CONFS[i]
-      const bw = cw * 0.5
-      const col = verify ? T.c.accent2 : T.c.dim
-      els.push(<rect key={`cb${i}`} x={x + (cw - bw) / 2} y={Y(c)} width={bw} height={base - Y(c)} rx={2} fill={col} opacity={verify ? 0.8 : 0.35} />)
-      els.push(<text key={`cv${i}`} x={x + cw / 2} y={Y(c) - 3} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={col}>{c.toFixed(2)}</text>)
-      els.push(<text key={`tk${i}`} x={x + cw / 2} y={base + 13} textAnchor="middle" fontFamily={T.font} fontSize={11} fontWeight={700} fill={verify ? T.c.accent2 : T.c.dim}>{DRAFT[i]}</text>)
-      els.push(<text key={`st${i}`} x={x + cw / 2} y={base + 25} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={verify ? T.c.accent2 : T.c.dim}>{verify ? '验证' : '丢弃'}</text>)
-      aPts.push([x + cw / 2, Y(sched.a[i])])
-    }
-    // a_j 折线 + 点
-    els.push(<polyline key="aline" points={aPts.map((p) => p.join(',')).join(' ')} fill="none" stroke={T.c.accent} strokeWidth={1.6} />)
-    aPts.forEach(([x, y], i) => els.push(<circle key={`ap${i}`} cx={x} cy={y} r={2.6} fill={T.c.accent} />))
-    // 验证截断竖线
-    const cutX = lx + sched.l * cw
-    els.push(<line key="cut" x1={cutX} y1={top - 4} x2={cutX} y2={base + 28} stroke={T.c.hot} strokeWidth={1.2} strokeDasharray="4 3" />)
-    // 图例
-    els.push(<text key="lg" x={lx} y={top - 8} fontFamily={T.font} fontSize={9} fill={T.c.dim}>
-      <tspan fill={T.c.accent2}>实心条 = 单步置信度 cₖ</tspan>　<tspan fill={T.c.accent}>折线 = 前缀存活 aⱼ=∏cᵢ</tspan>　<tspan fill={T.c.warn}>θ=负载阈值</tspan></text>)
-    const W = lx + DRAFT.length * cw + 56
-    const H = base + 34
-    return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
-  }
-
   const archControls = (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
       <span style={{ color: 'var(--text-dim)', width: 130 }}>串行头采样进度</span>
@@ -278,21 +163,6 @@ export default function Ch19DSpark({ prev, next }) {
       <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{L}</b>
     </label>
   )
-  const deltaControls = (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-      <span style={{ color: 'var(--text-dim)', width: 150 }}>草稿与大模型的分歧</span>
-      <input type="range" min={0} max={100} step={1} value={delta} onChange={(e) => setDelta(+e.target.value)} style={{ width: 140 }} />
-      <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{delta}%</b>
-    </label>
-  )
-  const schedControls = (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-      <span style={{ color: 'var(--text-dim)', width: 110 }}>系统负载</span>
-      <input type="range" min={0} max={100} step={1} value={load} onChange={(e) => setLoad(+e.target.value)} style={{ width: 140 }} />
-      <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{load}%</b>
-      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{load < 30 ? '(空闲:多验)' : load > 70 ? '(繁忙:少验)' : ''}</span>
-    </label>
-  )
 
   const losslessTex = `\\text{接受概率}=\\min\\!\\Big(1,\\;\\frac{\\textcolor{#7ee787}{p_{\\text{大}}(x)}}{\\textcolor{#6ea8fe}{q_{\\text{草}}(x)}}\\Big)
 \\;\\Rightarrow\\;\\text{输出分布}\\equiv p_{\\text{大}}\\ (\\textbf{无损})`
@@ -300,17 +170,15 @@ export default function Ch19DSpark({ prev, next }) {
 \\;\\Rightarrow\\;\\text{三杠杆:}\\;\\textcolor{#6ea8fe}{T_{\\text{draft}}\\!\\downarrow},\\;\\textcolor{#7ee787}{\\tau\\!\\uparrow},\\;\\textcolor{#f0a35e}{T_{\\text{verify}}\\!\\downarrow}`
   const biasTex = `p_k(x_k\\mid x_0,x_{<k})=\\mathrm{softmax}\\big(\\textcolor{#6ea8fe}{U_k}+\\textcolor{#7ee787}{B_k(x_{<k})}\\big)
 \\quad\\substack{\\textcolor{#6ea8fe}{U_k:\\text{并行骨架基础分}}\\\\[2pt]\\textcolor{#7ee787}{B_k:\\text{串行块转移偏置}}}`
-  const confTex = `c_k=\\sigma\\big(w^{\\top}[\\,h_k;\\,e_{x_{k-1}}]\\big)\\in(0,1),\\qquad
-a_j=\\prod_{i\\le j}c_i\\;(\\text{前缀存活,单调}\\downarrow),\\qquad
-c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
-  const schedTex = `\\max_{\\ell_1,\\dots,\\ell_R}\\;\\Theta=\\textcolor{#7ee787}{\\tau}\\cdot\\mathrm{SPS}(B),
-\\quad \\textcolor{#7ee787}{\\tau}=\\sum_r\\Big(1+\\sum_{j\\le\\ell_r}a_{r,j}\\Big),
-\\quad B=\\sum_r(1+\\ell_r)`
 
   return (
-    <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch19" title="DSpark:让投机解码的草稿更靠谱" prev={prev} next={next}>
+    <ChapterLayout kicker="第二部分 · DeepSeek-V4 · Ch19" title="DSpark(一)· 投机解码与半自回归" prev={prev} next={next}>
       <>
-        <h2>0 · 投机解码基础</h2>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>
+          DSpark 是 DeepSeek-V4 的<b>投机解码框架</b>,用三招提速。这是<b>第一章</b>:先讲投机解码的基础与第一招
+          <b>半自回归</b>;后面两章接着讲<b>置信度打分</b>与<b>动态调度</b>。
+        </p>
+        <h2>投机解码:老板 + 实习生</h2>
         <p>
           大模型生成慢在<b>一次只蹦一个字</b>,每个字都要把整个模型从头算一遍。
           <b>投机解码</b>打个比方:一个<b>老板</b>(大模型,聪明但慢)配一个<b>实习生</b>(drafter,一般但快)。
@@ -322,17 +190,17 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
         <p>
-          那提速由什么决定?把「每个字的平均耗时」拆开,就是全章<b>总纲</b>(论文公式 1):一轮<b>草稿</b>花
+          那提速由什么决定?把「每个字的平均耗时」拆开,就是 DSpark 的<b>总纲</b>(论文公式 1):一轮<b>草稿</b>花
           <Tex>{'T_{\\text{draft}}'}</Tex>、<b>验证</b>花 <Tex>{'T_{\\text{verify}}'}</Tex>,这一轮敲定 <Tex>{'\\tau'}</Tex> 个字(<b>接受长度</b>):
         </p>
         <div style={{ fontSize: 14, overflowX: 'auto', margin: '6px 0' }}><Tex block>{latencyTex}</Tex></div>
         <p>
           想更快只有<b>三条杠杆</b>:<b style={{ color: 'var(--accent)' }}>① 草得快(↓T_draft)</b>、
           <b style={{ color: 'var(--accent-2)' }}>② 草得准(↑τ)</b>、<b style={{ color: 'var(--warn)' }}>③ 验得省(↓T_verify)</b>。
-          DSpark 的三个模块正好各管一条——下面逐块拆。
+          DSpark 三招正好各管一条;<b>本章的半自回归一举管住前两条</b>,第③条留给后两章。
         </p>
 
-        <h2>1 · 半自回归 —— 管 ① T_draft 和 ② τ</h2>
+        <h2>半自回归 —— 管 ① T_draft 和 ② τ</h2>
         <p>实习生有两种草法,各有死穴:</p>
         <ul>
           <li><b>自回归</b>:写每字都看着<b>刚写的上一个字</b>,连贯、<b style={{ color: 'var(--accent-2)' }}>τ 高</b>——
@@ -350,55 +218,13 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
         <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: '2px 0' }}>
           <Tex>{'B_k'}</Tex> 的轻量实现:<b>Markov 头</b>(只看前一个字,低秩 <Tex>{'W_1W_2,\\ r{=}256'}</Tex>)或 <b>RNN 头</b>(带块内记忆)。
         </p>
-
-        <h2>2 · 置信度打分 —— 为 ③ 铺路(它到底怎么算出来的)</h2>
-        <p>
-          想「验得省」,得先<b>不跑大模型就提前猜</b>:每个草稿字有多大把握过审?DSpark 加一个<b>置信度头</b>,分三步:
-        </p>
-        <ul>
-          <li><b>第 1 步 · 输入</b>:并行骨架在该位置的隐藏态 <Tex>{'h_k'}</Tex>(它本就编码了「这个字草得稳不稳」)
-            加上<b>前一个字的嵌入</b> <Tex>{'e_{x_{k-1}}'}</Tex>。</li>
-          <li><b>第 2 步 · 压成概率</b>:一个<b>极小的线性层</b> <Tex>{'w'}</Tex> 加 <b>sigmoid</b>,把它挤成一个 (0,1) 的数 <Tex>{'c_k'}</Tex>。
-            —— 但光这样这个数<b>没意义</b>,得「教」它。</li>
-          <li><b>第 3 步 · 教什么(标签从哪来)</b>:回忆第 0 块的接受规则——草稿字以 <Tex>{'\\min(1,p_t/p_d)'}</Tex> 被接受。
-            对所有可能的字<b>平均</b>,一个草稿字被接受的概率,<b>恰好等于草稿分布 <Tex>{'p_d'}</Tex> 和大模型分布 <Tex>{'p_t'}</Tex> 的「重叠面积」</b>:
-            <Tex>{'c_k^{*}=\\sum_x\\min(p_d,p_t)=1-\\tfrac12\\lVert p_d-p_t\\rVert_1'}</Tex>。用它当标签训练 <Tex>{'c_k'}</Tex> 去逼近。</li>
-        </ul>
-        <p>
-          直觉(图③):<b>草稿和大模型「想说同样的词」→ 两分布重叠大 → 几乎必过(c*→1)</b>;想法分歧大 → 重叠小 → 常被拒。
-          于是置信度头学会了<b>只看 <Tex>{'h_k'}</Tex> 和前一个字,就便宜地估出这个重叠率</b>,不必真去跑大模型。
-        </p>
-        <div style={{ fontSize: 13, overflowX: 'auto', margin: '6px 0' }}><Tex block>{confTex}</Tex></div>
-        <p style={{ fontSize: 12.5, color: 'var(--text-dim)', margin: '2px 0' }}>
-          把各位置的 <Tex>{'c_k'}</Tex> <b>连乘</b>得<b>前缀存活率</b> <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低,图④折线)。
-          神经网络的置信度常<b>过于自信</b>,所以再做一次校准(STS),让 <Tex>{'c_k'}</Tex> 的<b>绝对数值</b>可信,好给第 3 步算吞吐。
-        </p>
-
-        <h2>3 · 动态调度 —— 管 ③ T_verify</h2>
-        <p>
-          验证一个额外的字,代价<b>看系统负载</b>:<b>空闲时几乎免费</b>(多验几个无所谓),
-          <b>繁忙时每个名额都金贵</b>(验一个没用的就挤掉别人的请求)。所以不该用<b>固定阈值</b>一刀切。
-        </p>
-        <p>
-          DSpark 的<b>硬件感知调度器</b>把它变成一道<b>吞吐最大化</b>题:给每个请求选验证长度 <Tex>{'\\ell'}</Tex>,
-          最大化全局吞吐 <Tex>{'\\Theta=\\tau\\cdot\\mathrm{SPS}(B)'}</Tex>(<Tex>{'\\mathrm{SPS}(B)'}</Tex> 是批大小 <Tex>{'B'}</Tex> 下引擎的每秒步数,开机时测一张表)。
-          按前缀存活 <Tex>{'a_j'}</Tex> 从高到低贪心地加验证名额,加到吞吐不再上升就停:
-        </p>
-        <div style={{ fontSize: 13, overflowX: 'auto', margin: '6px 0' }}><Tex block>{schedTex}</Tex></div>
-        <p>
-          直观就是:<b style={{ color: 'var(--accent-2)' }}>空闲时多验</b>(尽量长)、
-          <b style={{ color: 'var(--warn)' }}>繁忙时只验高把握的前缀、砍掉低置信尾巴</b> → 压住 T_verify(图④拖负载看截断线移动)。
-        </p>
-
         <div className="note">
-          实测:接受长度比 <b>Eagle-3 高 26~31%</b>、比 <b>DFlash 高 16~18%</b>;每用户生成速度
-          <b>Flash +60~85% / Pro +57~78%</b>(对比 MTP-1 基线)。DSpark 是<b>纯推理侧</b>升级,
-          <b>不改模型架构、不改输出分布</b>;训练/评测代码库 <b>DeepSpec</b> 已开源(含 DSpark/DFlash/Eagle3)。
+          下一章(<b>置信度打分</b>):怎么不跑大模型就提前估出每个草稿字「能过审的概率」;
+          再下一章(<b>动态调度</b>):用这个概率按系统负载决定验证几个,压住第③条杠杆 T_verify。
         </div>
         <div className="note" style={{ marginTop: 8 }}>
-          <b>诚实简化</b>:图① 是架构示意(略去 KV 注入、mask 细节);图② 把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>(并行≈0.5、半自回归更高),其「加速比=τ+1」只演示杠杆②;
-          图③ 的 <Tex>{'p_d'}</Tex> 用「与 <Tex>{'p_t'}</Tex> 的混合」近似草稿跑偏;
-          图④ 的调度用「负载→阈值 θ,保留 <Tex>{'a_j\\ge\\theta'}</Tex> 的前缀」近似真实的 <Tex>{'\\Theta'}</Tex> 贪心最大化。结论方向一致。
+          <b>诚实简化</b>:图① 是架构示意(略去 KV 注入、mask 细节);图② 把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>
+          (并行≈0.5、半自回归更高),其「加速比=τ+1」只演示杠杆②(假设 <Tex>{'T_{\\text{draft}},T_{\\text{verify}}'}</Tex> 都很小)。
         </div>
         <Refs
           ids={['2211.17192', '2302.01318', '1711.02281', '2401.10774', '2401.15077', '2606.19348']}
@@ -427,30 +253,6 @@ c_k^{*}=1-\\tfrac12\\lVert p^d_k-p^t_k\\rVert_1`
         <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
           当前 L={L}:并行期望接受 <b style={{ color: 'var(--accent)' }}>{d.ePar.toFixed(2)}</b>(加速 {d.spPar.toFixed(1)}×,已饱和);
           DSpark <b style={{ color: 'var(--accent2)' }}>{d.eSar.toFixed(2)}</b>(加速 {d.spSar.toFixed(1)}×,随块长涨)。
-        </div>
-
-        <h3 style={{ marginTop: 18 }}>图③ 置信度的「标签」从哪来:重叠 = 接受率</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          蓝实线是大模型分布 <b style={{ color: 'var(--accent)' }}>p_t</b>、绿虚线是草稿分布 <b style={{ color: 'var(--accent-2)' }}>p_d</b>;
-          <b style={{ color: 'var(--accent-2)' }}>绿色 = 两者重叠</b>(会被接受)、<b style={{ color: 'var(--hot,#ff6b6b)' }}>红色 = 分歧</b>(可能被拒)。
-          拖「分歧」:草稿越偏离大模型,绿色重叠越少 → 接受率 c* 越低。这就是置信度头要学着预测的标签。
-        </p>
-        <FigureBoard renderSvg={renderOverlap} baseCell={28} fullCell={38} controls={deltaControls} />
-        <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
-          当前分歧 <b style={{ color: 'var(--accent)' }}>{delta}%</b>:重叠面积(单步接受率)c* = <b style={{ color: 'var(--accent2)' }}>{ov.cstar.toFixed(2)}</b>
-          {delta < 15 ? '(草稿≈大模型,几乎必过)' : delta > 70 ? '(草稿跑偏,常被拒)' : ''}。置信度头学的就是这个数。
-        </div>
-
-        <h3 style={{ marginTop: 18 }}>图④ 动态调度:按负载决定验证几个</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          一块草稿 E…J,实心条是各位置置信度 <b style={{ color: 'var(--accent-2)' }}>cₖ</b>、折线是前缀存活 <b style={{ color: 'var(--accent)' }}>aⱼ</b>(越靠后越低)。
-          拖<b>系统负载</b>:负载越高、阈值 <b style={{ color: 'var(--warn)' }}>θ</b> 越高,<b style={{ color: 'var(--hot,#ff6b6b)' }}>截断线</b>左移、验证的字更少(只留高把握前缀)。
-        </p>
-        <FigureBoard renderSvg={renderSched} baseCell={28} fullCell={38} controls={schedControls} />
-        <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
-          当前负载 <b style={{ color: 'var(--accent)' }}>{load}%</b>(阈值 θ={sched.theta.toFixed(2)}):这一块草稿只验证<b style={{ color: 'var(--accent2)' }}>前 {sched.l} 个</b>字
-          (砍掉 {DRAFT.length - sched.l} 个低置信尾巴),期望接受 τ≈<b style={{ color: 'var(--accent2)' }}>{sched.tau.toFixed(2)}</b>。
-          {load > 70 ? ' 繁忙 → 验得省、把名额让给别的请求。' : load < 30 ? ' 空闲 → 多验几个、尽量多收字。' : ''}
         </div>
       </>
     </ChapterLayout>
