@@ -79,7 +79,7 @@ export default function Ch21DSparkSched({ prev, next }) {
       <>
         <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>
           上一章的<b>置信度头</b>给了每个草稿字「能过审的把握」<Tex>{'c_k'}</Tex>,以及前缀存活
-          <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低)。本章用它压住最后一条杠杆——<b>验得省(↓T_verify)</b>。
+          <Tex>{'a_j=\\prod_{i\\le j}c_i'}</Tex>(越靠后越低)。本章用它压住最后一条杠杆——<b>验证省(↓T_verify)</b>。
         </p>
         <h2>验证几个,要看系统忙不忙</h2>
         <p>
@@ -123,7 +123,7 @@ export default function Ch21DSparkSched({ prev, next }) {
         <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
           当前负载 <b style={{ color: 'var(--accent)' }}>{load}%</b>(阈值 θ={sched.theta.toFixed(2)}):这一块草稿只验证<b style={{ color: 'var(--accent2)' }}>前 {sched.l} 个</b>字
           (砍掉 {DRAFT.length - sched.l} 个低置信尾巴),期望接受 τ≈<b style={{ color: 'var(--accent2)' }}>{sched.tau.toFixed(2)}</b>。
-          {load > 70 ? ' 繁忙 → 验得省、把名额让给别的请求。' : load < 30 ? ' 空闲 → 多验几个、尽量多收字。' : ''}
+          {load > 70 ? ' 繁忙 → 验证更省、把名额让给别的请求。' : load < 30 ? ' 空闲 → 多验几个、尽量多收字。' : ''}
         </div>
       </>
     </ChapterLayout>

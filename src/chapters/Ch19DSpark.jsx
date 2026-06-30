@@ -108,7 +108,7 @@ export default function Ch19DSpark({ prev, next }) {
     refRow(1, '句意 B', MODE_B)
     {
       const ri = 2, y = top + ri * rowH
-      els.push(<text key={`l${ri}`} x={lx - 8} y={y + rowH / 2 + 2} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.accent}>并行草</text>)
+      els.push(<text key={`l${ri}`} x={lx - 8} y={y + rowH / 2 + 2} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.accent}>并行</text>)
       for (let i = 0; i < L; i++) {
         const tok = d.par.picks[i] ? MODE_B[i] : MODE_A[i]
         const accepted = i < d.par.acceptedLen
@@ -141,7 +141,7 @@ export default function Ch19DSpark({ prev, next }) {
       els.push(<text key={`bv${bi}`} x={barL + barMax + 8} y={y + 12} fontFamily={T.font} fontSize={10} fill={T.c.text}>τ≈{e.toFixed(2)} → 加速 {sp.toFixed(1)}×</text>)
     }
     els.push(<text key="bt" x={lx} y={by - 6} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>每次大模型验证 · 期望接受 τ / 加速比</text>)
-    drawBar(0, '并行草', d.ePar, d.spPar, T.c.accent)
+    drawBar(0, '并行', d.ePar, d.spPar, T.c.accent)
     drawBar(1, 'DSpark', d.eSar, d.spSar, T.c.accent2)
     const W = Math.max(lx + L * tw + 10, barL + barMax + 130)
     const H = by + 2 * 26 + 8
@@ -153,12 +153,12 @@ export default function Ch19DSpark({ prev, next }) {
       <span style={{ color: 'var(--text-dim)', width: 130 }}>串行头采样进度</span>
       <input type="range" min={0} max={ATOK.length} step={1} value={archStep} onChange={(e) => setArchStep(+e.target.value)} style={{ width: 130 }} />
       <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{archStep}/{ATOK.length}</b>
-      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{archStep === 0 ? '(并行已出基础分,串行未开始)' : archStep === ATOK.length ? '(整块草完)' : ''}</span>
+      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{archStep === 0 ? '(并行已出基础分,串行未开始)' : archStep === ATOK.length ? '(整块起草完成)' : ''}</span>
     </label>
   )
   const blockControls = (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-      <span style={{ color: 'var(--text-dim)', width: 110 }}>块长 L(草几个)</span>
+      <span style={{ color: 'var(--text-dim)', width: 110 }}>块长 L(一次起草几个)</span>
       <input type="range" min={2} max={8} step={1} value={L} onChange={(e) => setL(+e.target.value)} style={{ width: 140 }} />
       <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{L}</b>
     </label>
@@ -182,7 +182,7 @@ export default function Ch19DSpark({ prev, next }) {
         <p>
           大模型生成慢在<b>一次只蹦一个字</b>,每个字都要把整个模型从头算一遍。
           <b>投机解码</b>打个比方:一个<b>老板</b>(大模型,聪明但慢)配一个<b>实习生</b>(drafter,一般但快)。
-          实习生先<b>飞快草一串词</b>,老板<b>一眼扫完整串</b>:开头对的<b>照单全收</b>、碰到第一个错的就接手写对。
+          实习生先<b>飞快起草一串词</b>,老板<b>一眼扫完整串</b>:开头对的<b>照单全收</b>、碰到第一个错的就接手写对。
           这样老板一次能敲定<b>一整串</b>字,于是快了好几倍。
         </p>
         <p>
@@ -195,16 +195,16 @@ export default function Ch19DSpark({ prev, next }) {
         </p>
         <div style={{ fontSize: 14, overflowX: 'auto', margin: '6px 0' }}><Tex block>{latencyTex}</Tex></div>
         <p>
-          想更快只有<b>三条杠杆</b>:<b style={{ color: 'var(--accent)' }}>① 草得快(↓T_draft)</b>、
-          <b style={{ color: 'var(--accent-2)' }}>② 草得准(↑τ)</b>、<b style={{ color: 'var(--warn)' }}>③ 验得省(↓T_verify)</b>。
+          想更快只有<b>三条杠杆</b>:<b style={{ color: 'var(--accent)' }}>① 起草快(↓T_draft)</b>、
+          <b style={{ color: 'var(--accent-2)' }}>② 接受多(↑τ)</b>、<b style={{ color: 'var(--warn)' }}>③ 验证省(↓T_verify)</b>。
           DSpark 三招正好各管一条;<b>本章的半自回归一举管住前两条</b>,第③条留给后两章。
         </p>
 
         <h2>半自回归 —— 管 ① T_draft 和 ② τ</h2>
-        <p>实习生有两种草法,各有死穴:</p>
+        <p>实习生起草有两种方式,各有短板:</p>
         <ul>
           <li><b>自回归</b>:写每字都看着<b>刚写的上一个字</b>,连贯、<b style={{ color: 'var(--accent-2)' }}>τ 高</b>——
-            但 <b style={{ color: 'var(--accent)' }}>T_draft ∝ 块长</b>(越草越慢),只能草很短。</li>
+            但 <b style={{ color: 'var(--accent)' }}>T_draft ∝ 块长</b>(起草越多越慢),只能起草很短的块。</li>
           <li><b>并行</b>:所有位置<b>同时各写各的</b>,<b style={{ color: 'var(--accent)' }}>T_draft≈一次前向</b>(飞快)——
             但互相不看,<b style={{ color: 'var(--accent-2)' }}>τ 低</b>:回应既可「<b>of course</b>」也可「<b>no problem</b>」,
             位置 1 挑 <b>of</b>、位置 2 挑 <b>problem</b>,拼成 <b style={{ color: 'var(--warn)' }}>“of problem”</b> ✗(<b>多峰碰撞</b>),越往后越易串味(图②)。</li>
@@ -245,7 +245,7 @@ export default function Ch19DSpark({ prev, next }) {
 
         <h3 style={{ marginTop: 18 }}>图② 半自回归的效果:并行「串味」截断 vs 块内连贯</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          上两行是两种合理说法(句意 A / B)。「并行草」每位独立采样,采到第 {d.par.firstCollision + 1} 个就串味
+          上两行是两种合理说法(句意 A / B)。「并行」每位独立采样,采到第 {d.par.firstCollision + 1} 个就串味
           (<b style={{ color: 'var(--hot,#ff6b6b)' }}>✗</b>)、其后全被拒;「DSpark」块内有依赖、保持连贯。
           拖块长 L:并行 τ 很快饱和、DSpark 随 L 继续涨。
         </p>
