@@ -14,18 +14,68 @@ const C_PAR = 0.5 // 并行:块内独立 → 多峰碰撞,连贯概率 ~0.5
 const C_SAR = 0.85 // 半自回归:建模块内依赖 → 连贯概率更高
 const SEED = 8 // 让并行抽样在第 2 个 token 串味:'of'(A)+'problem'(B)="of problem" ✗
 
-// 图①:半自回归两阶段架构(锚点+mask → 并行骨架 → 串行头)
+// 图①:无损 = 接受(重叠)+ 补采(残差)重建 p_t
+const LVOCAB = ['A', 'B', 'C', 'D'] // 4 个候选字
+const LP_T = [0.4, 0.3, 0.2, 0.1] // 大模型分布(固定)
+const LOTHER = [0.1, 0.2, 0.3, 0.4] // 草稿跑偏时趋向它
+
+// 图②:半自回归两阶段架构(锚点+mask → 并行骨架 → 串行头)
 const ATOK = ['E', 'F', 'G', 'H'] // γ=4 个草稿位置
 
 export default function Ch19DSpark({ prev, next }) {
-  const [archStep, setArchStep] = useState(2) // 图① 串行头已采样到第几位
-  const [L, setL] = useState(8) // 图② 块长
+  const [lossDelta, setLossDelta] = useState(35) // 图① 草稿偏离 %
+  const [archStep, setArchStep] = useState(2) // 图② 串行头已采样到第几位
+  const [L, setL] = useState(8) // 图③ 块长
+
+  const lo = useMemo(() => {
+    const dl = lossDelta / 100
+    const pd = LP_T.map((v, i) => (1 - dl) * v + dl * LOTHER[i])
+    const acc = LP_T.reduce((s, pt, i) => s + Math.min(pt, pd[i]), 0) // 接受率 = Σmin
+    return { pd, acc }
+  }, [lossDelta])
 
   const d = useMemo(() => {
     const row = seededMatrix(1, 8, SEED)[0]
     const par = parallelDraft(row, L)
     return { par, ePar: expectedAccept(C_PAR, L), eSar: expectedAccept(C_SAR, L), spPar: speedup(C_PAR, L), spSar: speedup(C_SAR, L) }
   }, [L])
+
+  // —— 图①:无损重建 p_t —— //
+  const renderLossless = (cell) => {
+    const cs = cell
+    const cw = Math.max(cs * 2.6, 78)
+    const lx = 40
+    const top = 22
+    const ph = cs * 3.3
+    const base = top + ph
+    const maxP = 0.5
+    const Y = (v) => base - (v / maxP) * ph
+    const els = []
+    for (const t of [0, 0.25, 0.5]) {
+      els.push(<line key={`g${t}`} x1={lx} y1={Y(t)} x2={lx + LVOCAB.length * cw} y2={Y(t)} stroke={T.c.border} strokeWidth={0.5} strokeDasharray={t === 0 ? '' : '3 3'} />)
+      els.push(<text key={`gt${t}`} x={lx - 4} y={Y(t) + 3} textAnchor="end" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>{t}</text>)
+    }
+    for (let i = 0; i < LVOCAB.length; i++) {
+      const x = lx + i * cw
+      const pt = LP_T[i], pd = lo.pd[i], mn = Math.min(pt, pd)
+      const bw = cw * 0.3
+      const xd = x + cw * 0.1, xt = x + cw * 0.55
+      // 草稿 p_d:接受(0..mn 绿)+ 拒回(mn..pd 灰)
+      els.push(<rect key={`da${i}`} x={xd} y={Y(mn)} width={bw} height={base - Y(mn)} rx={2} fill={T.c.accent2} opacity={0.85} />)
+      if (pd > mn) els.push(<rect key={`dr${i}`} x={xd} y={Y(pd)} width={bw} height={Y(mn) - Y(pd)} rx={2} fill={T.c.dim} opacity={0.45} />)
+      els.push(<text key={`dl${i}`} x={xd + bw / 2} y={base + 12} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={T.c.dim}>p_d</text>)
+      // 大模型 p_t:接受(0..mn 绿)+ 补采(mn..pt 浅绿)
+      els.push(<rect key={`ta${i}`} x={xt} y={Y(mn)} width={bw} height={base - Y(mn)} rx={2} fill={T.c.accent2} opacity={0.85} />)
+      if (pt > mn) els.push(<rect key={`tr${i}`} x={xt} y={Y(pt)} width={bw} height={Y(mn) - Y(pt)} rx={2} fill={T.c.accent2} opacity={0.32} />)
+      els.push(<text key={`tl${i}`} x={xt + bw / 2} y={base + 12} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={T.c.accent2}>p_t</text>)
+      els.push(<text key={`w${i}`} x={x + cw / 2} y={base + 24} textAnchor="middle" fontFamily={T.font} fontSize={10} fontWeight={700} fill={T.c.text}>{LVOCAB[i]}</text>)
+    }
+    els.push(<text key="lg" x={lx} y={top - 9} fontFamily={T.font} fontSize={9} fill={T.c.dim}>
+      <tspan fill={T.c.accent2}>■ 接受(两柱重叠 min)</tspan>　<tspan fill={T.c.dim}>■ 草稿被拒回</tspan>　<tspan fill={T.c.accent2} opacity={0.6}>■ 补采填回</tspan></text>)
+    const W = lx + LVOCAB.length * cw + 8
+    const H = base + 30
+    return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
+  }
 
   // —— 图①:半自回归两阶段架构 —— //
   const renderArch = (cell) => {
@@ -148,6 +198,13 @@ export default function Ch19DSpark({ prev, next }) {
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
+  const lossControls = (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+      <span style={{ color: 'var(--text-dim)', width: 110 }}>草稿偏离 p_t</span>
+      <input type="range" min={0} max={100} step={1} value={lossDelta} onChange={(e) => setLossDelta(+e.target.value)} style={{ width: 140 }} />
+      <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{lossDelta}%</b>
+    </label>
+  )
   const archControls = (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
       <span style={{ color: 'var(--text-dim)', width: 130 }}>串行头采样进度</span>
@@ -202,7 +259,7 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
           <li>一旦退回,就从「大模型想要、但草稿给少了」的<b>残差</b> <Tex>{'(p_t-p_d)_{+}'}</Tex>(归一化)里<b>补采一个</b>字。</li>
         </ul>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '2px 0' }}>
-          可以证明:这样产出的字,分布<b>严格等于</b>直接从大模型采样——所以<b>无损</b>。
+          可以证明:这样产出的字,分布<b>严格等于</b>直接从大模型采样——所以<b>无损</b>(<b>图①</b>把这条规则画了出来:接受+补采正好重建 p_t)。
           (接受概率见 DSpark 论文 §2.1;补采那步与无损证明来自投机采样:Leviathan 2023 / Chen 2023。)
         </p>
         <p>
@@ -223,10 +280,10 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
             但 <b style={{ color: 'var(--accent)' }}>T_draft ∝ 块长</b>(起草越多越慢),只能起草很短的块。</li>
           <li><b>并行</b>:所有位置<b>同时各写各的</b>,<b style={{ color: 'var(--accent)' }}>T_draft≈一次前向</b>(飞快)——
             但互相不看,<b style={{ color: 'var(--accent-2)' }}>τ 低</b>:回应既可「<b>of course</b>」也可「<b>no problem</b>」,
-            位置 1 挑 <b>of</b>、位置 2 挑 <b>problem</b>,拼成 <b style={{ color: 'var(--warn)' }}>“of problem”</b> ✗(<b>多峰碰撞</b>),越往后越易串味(图②)。</li>
+            位置 1 挑 <b>of</b>、位置 2 挑 <b>problem</b>,拼成 <b style={{ color: 'var(--warn)' }}>“of problem”</b> ✗(<b>多峰碰撞</b>),越往后越易串味(图③)。</li>
         </ul>
         <p>
-          <b>DSpark 的半自回归</b>(架构见<b>图①</b>):用<b>并行骨架</b>一次前向出每个位置的<b>基础分</b> <Tex>{'U_k'}</Tex>(保住 T_draft 快),
+          <b>DSpark 的半自回归</b>(架构见<b>图②</b>):用<b>并行骨架</b>一次前向出每个位置的<b>基础分</b> <Tex>{'U_k'}</Tex>(保住 T_draft 快),
           再挂一个<b>轻量串行头</b>给每个位置加一个<b>转移偏置</b> <Tex>{'B_k'}</Tex>——它<b>左→右</b>看着已采样的前文:
           采了「of」就给「course」<b>加分</b>、给「problem」<b>减分</b>,于是块内连贯、<b>τ 抬高</b>。
         </p>
@@ -239,7 +296,8 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
           再下一章(<b>动态调度</b>):用这个概率按系统负载决定验证几个,压住第③条杠杆 T_verify。
         </div>
         <div className="note" style={{ marginTop: 8 }}>
-          <b>诚实简化</b>:图① 是架构示意(略去 KV 注入、mask 细节);图② 把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>
+          <b>诚实简化</b>:图① 用 toy 分布演示重建(真实 <Tex>{'p_t,p_d'}</Tex> 是模型逐位算出的);
+          图② 是架构示意(略去 KV 注入、mask 细节);图③ 把「连贯概率」抽象成单个 <Tex>{'c'}</Tex>
           (并行≈0.5、半自回归更高),其「加速比=τ+1」只演示杠杆②(假设 <Tex>{'T_{\\text{draft}},T_{\\text{verify}}'}</Tex> 都很小)。
         </div>
         <Refs
@@ -251,7 +309,21 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
         />
       </>
       <>
-        <h3>图① 半自回归架构:并行骨架(重)+ 串行头(轻)</h3>
+        <h3>图① 无损:接受 + 补采 = 重建大模型分布 p_t</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+          每个候选字画两根柱:左 <b style={{ color: 'var(--accent-2)' }}>p_d</b>(草稿)、右 <b style={{ color: 'var(--accent-2)' }}>p_t</b>(大模型)。
+          两柱<b>重叠的绿色</b>=直接<b>接受</b>;草稿多出来的<b style={{ color: 'var(--text-dim)' }}>灰色</b>=<b>拒回</b>;
+          大模型多出来的<b style={{ color: 'var(--accent-2)' }}>浅绿</b>=退回后<b>补采</b>填上。拖滑块:不管草稿多偏,
+          <b>右边 p_t 柱总被「接受+补采」精确重建</b>——这就是无损。
+        </p>
+        <FigureBoard renderSvg={renderLossless} baseCell={28} fullCell={38} controls={lossControls} />
+        <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--text-dim)' }}>
+          当前偏离 <b style={{ color: 'var(--accent)' }}>{lossDelta}%</b>:直接<b style={{ color: 'var(--accent2)' }}>接受 {(lo.acc * 100).toFixed(0)}%</b>,
+          其余 <b>{((1 - lo.acc) * 100).toFixed(0)}%</b> 草稿被拒回、再由补采等量填回 → 输出分布 = p_t(无损)。
+          偏离越大,接受越少、补采越多,但<b>结果分布不变</b>。
+        </div>
+
+        <h3 style={{ marginTop: 18 }}>图② 半自回归架构:并行骨架(重)+ 串行头(轻)</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
           自上而下:大模型给的<b>锚点 D + mask</b> → <b style={{ color: 'var(--accent)' }}>并行骨架一次前向</b>同时算出所有位置的基础分 <b>Uₖ</b>
           (快,但各位置独立→会碰撞)→ <b style={{ color: 'var(--accent-2)' }}>串行头左→右</b>逐位把 <b>Uₖ + Bₖ(前一字)</b> 再采样
@@ -259,7 +331,7 @@ x \\sim \\frac{(\\textcolor{#7ee787}{p_t}-\\textcolor{#6ea8fe}{p_d})_{+}}{\\sum_
         </p>
         <FigureBoard renderSvg={renderArch} baseCell={28} fullCell={38} controls={archControls} />
 
-        <h3 style={{ marginTop: 18 }}>图② 半自回归的效果:并行「串味」截断 vs 块内连贯</h3>
+        <h3 style={{ marginTop: 18 }}>图③ 半自回归的效果:并行「串味」截断 vs 块内连贯</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
           上两行是两种合理说法(句意 A / B)。「并行」每位独立采样,采到第 {d.par.firstCollision + 1} 个就串味
           (<b style={{ color: 'var(--hot,#ff6b6b)' }}>✗</b>)、其后全被拒;「DSpark」块内有依赖、保持连贯。
