@@ -164,8 +164,10 @@ export default function Ch19DSpark({ prev, next }) {
     </label>
   )
 
-  const losslessTex = `\\text{接受概率}=\\min\\!\\Big(1,\\;\\frac{\\textcolor{#7ee787}{p_{\\text{大}}(x)}}{\\textcolor{#6ea8fe}{q_{\\text{草}}(x)}}\\Big)
-\\;\\Rightarrow\\;\\text{输出分布}\\equiv p_{\\text{大}}\\ (\\textbf{无损})`
+  const losslessTex = `\\underbrace{\\text{接受 }x\\text{ 的概率}=\\min\\!\\Big(1,\\tfrac{\\textcolor{#7ee787}{p_{\\text{大}}(x)}}{\\textcolor{#6ea8fe}{q_{\\text{草}}(x)}}\\Big)}_{\\text{大模型概率 ÷ 草稿概率}}
+\\;,\\;\\;
+\\underbrace{\\text{被拒 → 从 }(\\textcolor{#7ee787}{p_{\\text{大}}}-\\textcolor{#6ea8fe}{q_{\\text{草}}})_{+}\\text{ 补采}}_{\\text{大模型想要、草稿给少了的部分}}
+\\;\\Rightarrow\\;\\text{输出}\\equiv p_{\\text{大}}\\,(\\textbf{无损})`
   const latencyTex = `L=\\frac{\\textcolor{#6ea8fe}{T_{\\text{draft}}}+\\textcolor{#f0a35e}{T_{\\text{verify}}}}{\\textcolor{#7ee787}{\\tau}}
 \\;\\Rightarrow\\;\\text{三杠杆:}\\;\\textcolor{#6ea8fe}{T_{\\text{draft}}\\!\\downarrow},\\;\\textcolor{#7ee787}{\\tau\\!\\uparrow},\\;\\textcolor{#f0a35e}{T_{\\text{verify}}\\!\\downarrow}`
   const biasTex = `p_k(x_k\\mid x_0,x_{<k})=\\mathrm{softmax}\\big(\\textcolor{#6ea8fe}{U_k}+\\textcolor{#7ee787}{B_k(x_{<k})}\\big)
@@ -186,9 +188,21 @@ export default function Ch19DSpark({ prev, next }) {
           这样老板一次能敲定<b>一整串</b>字,于是快了好几倍。
         </p>
         <p>
-          最妙的是<b>无损</b>:每字都经老板把关(下式的拒绝采样规则),最终输出<b>和大模型逐字写出来的一字不差</b>。
+          最妙的是<b>无损</b>:每字都经老板把关(下式的<b>拒绝采样</b>规则),最终输出<b>和大模型逐字写出来的一字不差</b>。
         </p>
         <div style={{ fontSize: 13.5, overflowX: 'auto', margin: '6px 0' }}><Tex block>{losslessTex}</Tex></div>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0' }}>
+          <b>怎么读这条规则</b>:草稿先按自己的分布 <Tex>{'q_{\\text{草}}'}</Tex> 采了个字 <Tex>{'x'}</Tex>。
+        </p>
+        <ul style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 0 }}>
+          <li>若大模型对 <Tex>{'x'}</Tex> 的概率<b>不低于</b>草稿(<Tex>{'p_{\\text{大}}\\ge q_{\\text{草}}'}</Tex>)→ 比值 ≥1 → <b>直接收</b>(老板也至少这么想要它)。</li>
+          <li>若大模型概率<b>更低</b>(草稿过度偏爱)→ 只以 <Tex>{'p_{\\text{大}}/q_{\\text{草}}'}</Tex> 的概率收,<b>其余情况退回</b>。</li>
+          <li>一旦退回,就从「大模型想要、但草稿给少了」的<b>残差</b> <Tex>{'(p_{\\text{大}}-q_{\\text{草}})_{+}'}</Tex>(归一化)里<b>补采一个</b>字。</li>
+        </ul>
+        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '2px 0' }}>
+          可以证明:这样产出的字,分布<b>严格等于</b>直接从大模型采样——所以<b>无损</b>。
+          (接受概率见 DSpark 论文 §2.1;补采那步与无损证明来自投机采样:Leviathan 2023 / Chen 2023。)
+        </p>
         <p>
           那提速由什么决定?把「每个字的平均耗时」拆开,就是 DSpark 的<b>总纲</b>(论文公式 1):一轮<b>草稿</b>花
           <Tex>{'T_{\\text{draft}}'}</Tex>、<b>验证</b>花 <Tex>{'T_{\\text{verify}}'}</Tex>,这一轮敲定 <Tex>{'\\tau'}</Tex> 个字(<b>接受长度</b>):
