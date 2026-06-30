@@ -56,60 +56,64 @@ export default function Ch19DSpark({ prev, next }) {
   const renderArch = (cell) => {
     const cs = cell
     const G = ATOK.length
-    const colW = Math.max(cs * 2.5, 76)
+    const colW = Math.max(cs * 2.6, 84)
     const lx = 14
     const bh = cs * 0.9 // 单元高
-    const tag = (x, y, w, txt, fill, stroke, tc, fs = 11, bold) =>
+    const nw = colW * 0.66 // U / token 节点宽(居中,留出横向箭头空隙)
+    const iw = colW * 0.84 // 输入节点宽
+    const els = []
+    const cx = (i) => lx + i * colW + colW / 2 // 列中心
+    const box = (key, cxc, y, w, txt, fill, stroke, tc, fs = 11, bold) =>
       els.push(
-        <rect key={`r${x}-${y}`} x={x} y={y} width={w} height={bh} rx={5} fill={fill} stroke={stroke} strokeWidth={1.2} />,
-        <text key={`t${x}-${y}`} x={x + w / 2} y={y + bh / 2 + 4} textAnchor="middle" fontFamily={T.font} fontSize={fs} fontWeight={bold ? 700 : 400} fill={tc}>{txt}</text>,
+        <rect key={`r${key}`} x={cxc - w / 2} y={y} width={w} height={bh} rx={5} fill={fill} stroke={stroke} strokeWidth={1.2} />,
+        <text key={`t${key}`} x={cxc} y={y + bh / 2 + 4} textAnchor="middle" fontFamily={T.font} fontSize={fs} fontWeight={bold ? 700 : 400} fill={tc}>{txt}</text>,
       )
     const vArrow = (x, y1, y2, col = T.c.dim) =>
       els.push(<line key={`va${x}-${y1}`} x1={x} y1={y1} x2={x} y2={y2 - 4} stroke={col} strokeWidth={1.3} markerEnd="url(#ah)" />)
-    const colX = (i) => lx + i * colW
-    const colC = (i) => colX(i) + (colW - 6) / 2
-    const els = []
-    const cw = colW - 6
     const y0 = 26 // 输入
     const y1 = y0 + bh + 30 // 并行骨架
     const y2 = y1 + bh + 26 // 基础分 U
-    const y3 = y2 + bh + 54 // 串行头 token
-    const W = lx + G * colW + 150
-    // marker
-    els.push(<defs key="defs"><marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.dim} /></marker></defs>)
-
+    const y3 = y2 + bh + 42 // 串行头 token
+    const right = lx + G * colW
+    const W = right + 150
+    els.push(
+      <defs key="defs">
+        <marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.dim} /></marker>
+        <marker id="ah2" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.accent2} /></marker>
+      </defs>,
+    )
     // 行0:输入 = 锚点 D + (γ-1) 个 mask
     els.push(<text key="il" x={lx} y={y0 - 8} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>输入:大模型给的锚点 + (γ−1) 个 mask</text>)
     for (let i = 0; i < G; i++) {
       const anchor = i === 0
-      tag(colX(i), y0, cw, anchor ? 'D(锚点)' : 'mask', anchor ? 'rgba(110,168,254,0.2)' : T.c.bgElev, anchor ? T.c.accent : T.c.border, anchor ? T.c.accent : T.c.dim, anchor ? 10 : 10)
-      vArrow(colC(i), y0 + bh, y1)
+      box(`in${i}`, cx(i), y0, iw, anchor ? 'D(锚点)' : 'mask', anchor ? 'rgba(110,168,254,0.2)' : T.c.bgElev, anchor ? T.c.accent : T.c.border, anchor ? T.c.accent : T.c.dim, 10)
+      vArrow(cx(i), y0 + bh, y1)
     }
     // 行1:并行骨架(一个大框,跨全宽)
     els.push(<rect key="bb" x={lx} y={y1} width={G * colW - 6} height={bh} rx={7} fill="rgba(110,168,254,0.16)" stroke={T.c.accent} strokeWidth={1.6} />)
     els.push(<text key="bbt" x={lx + (G * colW - 6) / 2} y={y1 + bh / 2 + 4} textAnchor="middle" fontFamily={T.font} fontSize={12} fontWeight={700} fill={T.c.accent}>并行骨架(重)· 一次前向,所有位置同时算</text>)
-    els.push(<text key="bbn" x={lx + G * colW + 6} y={y1 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.accent}>T_draft≈1 次<tspan x={lx + G * colW + 6} dy={12}>(与块长无关→快)</tspan></text>)
-    for (let i = 0; i < G; i++) vArrow(colC(i), y1 + bh, y2)
+    els.push(<text key="bbn" x={right + 6} y={y1 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.accent}>T_draft≈1 次<tspan x={right + 6} dy={12}>(与块长无关→快)</tspan></text>)
+    for (let i = 0; i < G; i++) vArrow(cx(i), y1 + bh, y2)
     // 行2:基础分 U_k(各位置独立)
-    for (let i = 0; i < G; i++) tag(colX(i), y2, cw, `U${i + 1}`, T.c.bgElev, T.c.border, T.c.text, 11, true)
-    els.push(<text key="ul" x={lx + G * colW + 6} y={y2 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>基础分:同时产出<tspan x={lx + G * colW + 6} dy={12}>但各位置独立→会碰撞</tspan></text>)
+    for (let i = 0; i < G; i++) box(`u${i}`, cx(i), y2, nw, `U${i + 1}`, T.c.bgElev, T.c.border, T.c.text, 11, true)
+    els.push(<text key="ul" x={right + 6} y={y2 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>基础分:同时产出<tspan x={right + 6} dy={12}>但各位置独立→会碰撞</tspan></text>)
     // 行3:串行头(左→右),每步 U_k + B_k(前一字) 采样
-    els.push(<text key="sl" x={lx} y={y3 - 34} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>串行头(轻)· 左→右 · 每步 Uₖ + Bₖ(前一字) 再采样</text>)
+    els.push(<text key="sl" x={lx} y={y3 - 12} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>串行头(轻)· 左→右 · 每步 Uₖ + Bₖ(前一字) 再采样</text>)
+    const ymid = y3 + bh / 2
     for (let i = 0; i < G; i++) {
       const done = i < archStep
-      vArrow(colC(i), y2 + bh, y3, done ? T.c.accent2 : T.c.border) // U_k 注入
-      tag(colX(i), y3, cw, done ? ATOK[i] : '?', done ? 'rgba(126,231,135,0.22)' : T.c.bgElev, done ? T.c.accent2 : T.c.border, done ? T.c.accent2 : T.c.dim, done ? 12 : 12, done)
-      // 依赖箭头:前一字 → 本字的偏置
+      vArrow(cx(i), y2 + bh, y3, done ? T.c.accent2 : T.c.border) // U_k 注入(从上)
+      // 依赖横箭头:前一字 → 本字(从左),画在框之前,避免压住框
       if (i > 0) {
-        const x1 = colX(i - 1) + cw, x2 = colX(i)
         const on = i < archStep // 目标字已采样,依赖才点亮
-        els.push(<path key={`dep${i}`} d={`M${x1},${y3} C${x1 + 14},${y3 - 18} ${x2 - 14},${y3 - 18} ${x2},${y3}`} fill="none"
-          stroke={on ? T.c.accent2 : T.c.border} strokeWidth={on ? 1.5 : 1} strokeDasharray={on ? '' : '3 3'} markerEnd={on ? 'url(#ah2)' : ''} />)
-        if (on) els.push(<text key={`bk${i}`} x={(x1 + x2) / 2} y={y3 - 20} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={T.c.accent2}>+B{i + 1}</text>)
+        const xa = cx(i - 1) + nw / 2 + 2
+        const xb = cx(i) - nw / 2
+        els.push(<line key={`dep${i}`} x1={xa} y1={ymid} x2={xb - 2} y2={ymid} stroke={on ? T.c.accent2 : T.c.border} strokeWidth={on ? 1.6 : 1} strokeDasharray={on ? '' : '3 3'} markerEnd={on ? 'url(#ah2)' : ''} />)
+        els.push(<text key={`bk${i}`} x={(xa + xb) / 2} y={ymid - 5} textAnchor="middle" fontFamily={T.font} fontSize={8.5} fill={on ? T.c.accent2 : T.c.dim}>+B{i + 1}</text>)
       }
+      box(`tk${i}`, cx(i), y3, nw, done ? ATOK[i] : '?', done ? 'rgba(126,231,135,0.22)' : T.c.bgElev, done ? T.c.accent2 : T.c.border, done ? T.c.accent2 : T.c.dim, 12, done)
     }
-    els.push(<defs key="defs2"><marker id="ah2" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill={T.c.accent2} /></marker></defs>)
-    els.push(<text key="snote" x={lx + G * colW + 6} y={y3 + bh / 2 + 4} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>只注入依赖<tspan x={lx + G * colW + 6} dy={12}>极轻→连贯(τ↑)</tspan></text>)
+    els.push(<text key="snote" x={right + 6} y={ymid} fontFamily={T.font} fontSize={9.5} fill={T.c.accent2}>只注入依赖<tspan x={right + 6} dy={12}>极轻→连贯(τ↑)</tspan></text>)
     els.push(<text key="out" x={lx} y={y3 + bh + 18} fontFamily={T.font} fontSize={9.5} fill={T.c.dim}>↓ 得到草稿块(再各配一个置信度 cₖ,见图③/④)</text>)
     const H = y3 + bh + 28
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
