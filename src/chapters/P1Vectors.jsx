@@ -16,6 +16,9 @@ const MAT = [
 ]
 const TCOL = ['#6ea8fe', '#7ee787', '#f0a35e', '#d2a8ff']
 
+// 估算一段文本的像素宽(CJK≈11、ASCII≈6.2),用来给 SVG 留够宽度、防英文更长时裁切。
+const estTextW = (s) => [...String(s)].reduce((w, ch) => w + (ch.charCodeAt(0) > 255 ? 11 : 6.2), 0)
+
 // ── 共享:2D 平面绘制 ──
 function planeEls(cx, cy, unit, R) {
   const P = (vx, vy) => [cx + vx * unit, cy - vy * unit]
@@ -74,9 +77,9 @@ export default function P1Vectors({ prev, next }) {
         fontSize={12} fill="#fff">{v.toFixed(1)}</text>)
       els.push(<text key={`crl${i}`} x={bx + 56} y={by + i * 30 + 18} fontFamily={T.font} fontSize={9} fill={T.c.dim}>{t('维', 'dim')}{i}</text>)
     })
-    els.push(<text key="info" x={50} y={cy + R * unit + 22} fontFamily={T.font} fontSize={11} fill={T.c.accent2}>
-      {t('长度', 'len')} |v| = √({vx}²+{vy}²) = {len.toFixed(2)} , {t('方向', 'angle')} = {ang.toFixed(0)}°</text>)
-    const W = bx + 90
+    const infoText = `${t('长度', 'len')} |v| = √(${vx}²+${vy}²) = ${len.toFixed(2)} , ${t('方向', 'angle')} = ${ang.toFixed(0)}°`
+    els.push(<text key="info" x={50} y={cy + R * unit + 22} fontFamily={T.font} fontSize={11} fill={T.c.accent2}>{infoText}</text>)
+    const W = Math.max(bx + 90, 50 + estTextW(infoText) + 12)
     const H = cy + R * unit + 32
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
@@ -100,8 +103,8 @@ export default function P1Vectors({ prev, next }) {
     })
     els.push(<text key="cl0" x={left + cs / 2} y={top - 6} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.dim}>{t('维0', 'dim0')}</text>)
     els.push(<text key="cl1" x={left + cs + cs / 2} y={top - 6} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.dim}>{t('维1', 'dim1')}</text>)
-    els.push(<text key="mc" x={left} y={top + MAT.length * cs + 16} fontFamily={T.font} fontSize={10} fill={T.c.dim}>
-      {t(`矩阵 ${MAT.length}×2:每行是一个 token 的向量`, `matrix ${MAT.length}×2: each row = one token's vector`)}</text>)
+    const mcText = t(`矩阵 ${MAT.length}×2:每行是一个 token 的向量`, `matrix ${MAT.length}×2: one token per row`)
+    els.push(<text key="mc" x={left} y={top + MAT.length * cs + 16} fontFamily={T.font} fontSize={10} fill={T.c.dim}>{mcText}</text>)
     // 右:把选中行画成箭头
     const R = 2
     const unit = cs * 1.4
@@ -115,9 +118,10 @@ export default function P1Vectors({ prev, next }) {
       els.push(arrowEl(`a${i}`, cx, cy, px, py, sel ? TCOL[i] : T.c.border, sel ? 3 : 1.4))
       if (sel) els.push(<text key={`at${i}`} x={px + 6} y={py - 4} fontFamily={T.font} fontSize={11} fill={TCOL[i]}>{TOK[i]}</text>)
     })
-    els.push(<text key="rc" x={cx - R * unit} y={cy + R * unit + 18} fontFamily={T.font} fontSize={10} fill={T.c.dim}>
-      {t('点左边的行 → 看它在平面上的箭头(每个 token 是空间里的一个点)', "click a row on the left → see its arrow on the plane (each token is a point in space)")}</text>)
-    const W = cx + R * unit + 20
+    const rcText = t('点左边的行 → 看它在平面上的箭头(每个 token 是空间里的一个点)', 'click a row → its arrow on the plane')
+    els.push(<text key="rc" x={cx - R * unit} y={cy + R * unit + 18} fontFamily={T.font} fontSize={10} fill={T.c.dim}>{rcText}</text>)
+    // 按文本宽度留足,避免英文更长时被 SVG 裁切
+    const W = Math.max(cx + R * unit + 20, left + estTextW(mcText) + 12, cx - R * unit + estTextW(rcText) + 12)
     const H = Math.max(top + MAT.length * cs + 26, cy + R * unit + 28)
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }

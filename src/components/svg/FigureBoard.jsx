@@ -87,7 +87,7 @@ export default function FigureBoard({ renderSvg, baseCell = 24, fullCell = 38, c
             <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>
               {t('全屏画布', 'Fullscreen')} &nbsp;|&nbsp; <b style={{ color: 'var(--accent)' }}>{t('拖拽', 'drag')}</b>{t('平移', ' to pan')} ·
               <b style={{ color: 'var(--accent)' }}> {t('捏合/Ctrl+滚轮', 'pinch / Ctrl+wheel')}</b> {t('缩放', 'zoom')} {Math.round(view.s * 100)}% ·
-              <b style={{ color: 'var(--accent)' }}> {t('滚轮', 'wheel')}</b>{t('平移', ' to pan')} &nbsp;|&nbsp; {t('PageUp/Down 调长度 · Esc 关闭', 'PageUp/Down length · Esc close')}
+              <b style={{ color: 'var(--accent)' }}> {t('滚轮', 'wheel')}</b>{t('平移', ' to pan')} &nbsp;|&nbsp; {onPageStep ? t('PageUp/Down 调长度 · ', 'PageUp/Down length · ') : ''}{t('Esc 关闭', 'Esc close')}
             </span>
             <button className="btn" onMouseDown={(e) => e.stopPropagation()} onClick={() => setFull(false)}>✕ {t('关闭', 'Close')}</button>
           </div>

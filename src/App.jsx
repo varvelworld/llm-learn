@@ -24,6 +24,8 @@ function LangToggle() {
   const btn = (code, label) => (
     <button
       onClick={() => setLang(code)}
+      aria-label={code === 'zh' ? 'Switch to Chinese' : 'Switch to English'}
+      aria-pressed={lang === code}
       style={{
         padding: '2px 10px',
         borderRadius: 6,
