@@ -1,4 +1,5 @@
 import { T } from './theme.js'
+import { useT } from '../../i18n/lang.jsx'
 
 // 注意力连线(渲染成 <g>,放进流水线同一块 SVG 画板)。
 // 选中的查询 token 用弧线连到它关注的各 key,线越粗/越亮 = 权重越大。
@@ -13,6 +14,7 @@ export function arcsGeom(cell) {
 }
 
 export default function AttentionArcs({ x = 0, y = 0, tokens, weights, query, selKey = -1, onSelect, onSelectKey, cell = T.cell }) {
+  const t = useT()
   const { bw, step, archH, boxH } = arcsGeom(cell)
   const cx = (i) => i * step + bw / 2
   const w = weights[query] || []
@@ -31,7 +33,7 @@ export default function AttentionArcs({ x = 0, y = 0, tokens, weights, query, se
         )
       })}
       {/* token 方块:作查询(蓝)或作选中键(绿框) */}
-      {tokens.map((t, i) => (
+      {tokens.map((tok, i) => (
         <g key={i} onMouseEnter={() => onSelect(i)}
           onMouseDown={onSelectKey ? (e) => { e.stopPropagation(); onSelectKey(i) } : undefined}
           style={{ cursor: 'pointer' }}>
@@ -39,11 +41,12 @@ export default function AttentionArcs({ x = 0, y = 0, tokens, weights, query, se
             fill={i === query ? T.c.accent : T.c.bgElev}
             stroke={i === selKey ? T.c.accent2 : T.c.border} strokeWidth={i === selKey ? 2 : 1} />
           <text x={cx(i)} y={archH + boxH * 0.68} textAnchor="middle"
-            fontFamily={T.font} fontSize={T.fsLabel} fill={i === query ? '#0f1115' : T.c.text}>{t}</text>
+            fontFamily={T.font} fontSize={T.fsLabel} fill={i === query ? '#0f1115' : T.c.text}>{tok}</text>
         </g>
       ))}
       <text x={0} y={archH + boxH + 16} fontFamily={T.font} fontSize={T.fsLabel} fill={T.c.dim}>
-        弧越粗 = 权重越大 = ③ 权重列的值;该 token 的值按此权重汇入输出(悬停查询;点 token 选键)
+        {t('弧越粗 = 权重越大 = ③ 权重列的值;该 token 的值按此权重汇入输出(悬停查询;点 token 选键)',
+          'Thicker arc = larger weight = the ③ weight-column value; that token\'s value flows into the output by this weight (hover a query; click a token to pick a key)')}
       </text>
     </g>
   )
