@@ -4,6 +4,7 @@ import Refs from '../components/Refs.jsx'
 import FigureBoard from '../components/svg/FigureBoard.jsx'
 import Tex from '../components/Tex.jsx'
 import { T } from '../components/svg/theme.js'
+import { useLang, useT } from '../i18n/lang.jsx'
 
 function planeEls(cx, cy, unit, R) {
   const P = (vx, vy) => [cx + vx * unit, cy - vy * unit]
@@ -28,14 +29,16 @@ function arrow(key, x1, y1, x2, y2, color, w = 2.6) {
 }
 
 const OPS = [
-  { k: 'add', label: '加法 a+b', cap: '合成 / 平移 —— 沿 a 走完再沿 b 走,平行四边形对角线', llm: 'LLM:残差连接 x + 子层(x)' },
-  { k: 'scale', label: '数乘 k·a', cap: '缩放 —— 只改长度(k<0 还会反向),方向所在直线不变', llm: 'LLM:学习率 / 权重缩放 / 归一化里的 ÷RMS' },
-  { k: 'dot', label: '点积 a·b', cap: '投影 / 对齐程度 → 一个标量。同向为正、垂直为 0、反向为负', llm: 'LLM:注意力打分 q·k(两个 token 多相关)' },
-  { k: 'matmul', label: '矩阵乘 M·a', cap: '变换 —— 整个空间被旋转+缩放,a 被搬到新位置(矩阵的列 = 基向量的新落点)', llm: 'LLM:Q/K/V 投影、FFN 升降维、输出头' },
-  { k: 'hadamard', label: '逐元素 a⊙b', cap: '按轴门控 —— 第 i 维各自乘 b_i,b 像每个维度的「阀门」', llm: 'LLM:SwiGLU 的门控 gate ⊙ value' },
+  { k: 'add', label: '加法 a+b', labelEn: 'Add a+b', cap: '合成 / 平移 —— 沿 a 走完再沿 b 走,平行四边形对角线', capEn: 'Combine / translate — parallelogram diagonal', llm: 'LLM:残差连接 x + 子层(x)', llmEn: 'LLM: residual connection x + sublayer(x)' },
+  { k: 'scale', label: '数乘 k·a', labelEn: 'Scale k·a', cap: '缩放 —— 只改长度(k<0 还会反向),方向所在直线不变', capEn: 'Scaling — length only (k<0 flips), same line', llm: 'LLM:学习率 / 权重缩放 / 归一化里的 ÷RMS', llmEn: 'LLM: learning rate / weight scaling / ÷RMS in normalization' },
+  { k: 'dot', label: '点积 a·b', labelEn: 'Dot a·b', cap: '投影 / 对齐程度 → 一个标量。同向为正、垂直为 0、反向为负', capEn: 'Projection / alignment → a scalar', llm: 'LLM:注意力打分 q·k(两个 token 多相关)', llmEn: 'LLM: attention score q·k (how related two tokens are)' },
+  { k: 'matmul', label: '矩阵乘 M·a', labelEn: 'MatMul M·a', cap: '变换 —— 整个空间被旋转+缩放,a 被搬到新位置(矩阵的列 = 基向量的新落点)', capEn: 'Transform — rotate + scale, a moves elsewhere', llm: 'LLM:Q/K/V 投影、FFN 升降维、输出头', llmEn: 'LLM: Q/K/V projections, FFN up/down, output head' },
+  { k: 'hadamard', label: '逐元素 a⊙b', labelEn: 'Elementwise a⊙b', cap: '按轴门控 —— 第 i 维各自乘 b_i,b 像每个维度的「阀门」', capEn: 'Per-axis gating — each dim × b_i (a valve/dim)', llm: 'LLM:SwiGLU 的门控 gate ⊙ value', llmEn: 'LLM: SwiGLU gating, gate ⊙ value' },
 ]
 
 export default function P2Ops({ prev, next }) {
+  const t = useT()
+  const { lang } = useLang()
   const [op, setOp] = useState('add')
   const [a, setA] = useState([2, 1])
   const [b, setB] = useState([1, 2])
@@ -56,15 +59,17 @@ export default function P2Ops({ prev, next }) {
     const pAB = dotv / (lb || 1); const pBA = dotv / (la || 1)
     const f = (v) => v.toFixed(2)
     const CO = '#f0a35e'; const CPp = '#d2a8ff'
+    const proj = t('投影', 'proj')
     return {
-      tex: `\\begin{aligned} a\\cdot b = b\\cdot a &= \\mathbf{${f(dotv)}} \\quad (\\theta=${ang.toFixed(0)}^{\\circ}) \\\\ \\textcolor{${CO}}{a\\!\\to\\! b}:\\ & \\underbrace{${f(pAB)}}_{\\text{投影}}\\,\\times\\,\\underbrace{${f(lb)}}_{|b|} = \\mathbf{${f(pAB * lb)}} \\\\ \\textcolor{${CPp}}{b\\!\\to\\! a}:\\ & \\underbrace{${f(pBA)}}_{\\text{投影}}\\,\\times\\,\\underbrace{${f(la)}}_{|a|} = \\mathbf{${f(pBA * la)}} \\end{aligned}`,
-      note: '两条投影长度不同(橙 ≠ 紫),但「投影 × 另一向量长度」相等 → 点积可交换',
+      tex: `\\begin{aligned} a\\cdot b = b\\cdot a &= \\mathbf{${f(dotv)}} \\quad (\\theta=${ang.toFixed(0)}^{\\circ}) \\\\ \\textcolor{${CO}}{a\\!\\to\\! b}:\\ & \\underbrace{${f(pAB)}}_{\\text{${proj}}}\\,\\times\\,\\underbrace{${f(lb)}}_{|b|} = \\mathbf{${f(pAB * lb)}} \\\\ \\textcolor{${CPp}}{b\\!\\to\\! a}:\\ & \\underbrace{${f(pBA)}}_{\\text{${proj}}}\\,\\times\\,\\underbrace{${f(la)}}_{|a|} = \\mathbf{${f(pBA * la)}} \\end{aligned}`,
+      note: t('两条投影长度不同(橙 ≠ 紫),但「投影 × 另一向量长度」相等 → 点积可交换',
+        'The two projection lengths differ (orange ≠ purple), but "projection × the other vector\'s length" is equal → the dot product is commutative'),
     }
   })()
 
   // ── 门控直觉图:把 b 当一排「阀门」,看每维信号被放行多少 ──
   const SIG = [1.0, 1.0, 1.0, 1.0] // 各维入口信号(都设 1,让阀门效果最直观)
-  const gateName = (g) => (g === 0 ? '关闭' : g < 1 ? '半开' : g === 1 ? '全开' : '放大')
+  const gateName = (g) => (g === 0 ? t('关闭', 'off') : g < 1 ? t('半开', 'half') : g === 1 ? t('全开', 'open') : t('放大', 'amplify'))
   const renderGate = () => {
     const rowH = 50
     const top = 30
@@ -74,18 +79,15 @@ export default function P2Ops({ prev, next }) {
     const W = 400
     const H = top + gates.length * rowH + 10
     const els = []
-    els.push(<text key="h1" x={inX} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent}>信号 a</text>)
-    els.push(<text key="h2" x={gX + gW / 2} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>阀门 b</text>)
-    els.push(<text key="h3" x={outX + outW / 2} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.warn}>输出 a·b</text>)
+    els.push(<text key="h1" x={inX} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent}>{t('信号 a', 'signal a')}</text>)
+    els.push(<text key="h2" x={gX + gW / 2} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>{t('阀门 b', 'valve b')}</text>)
+    els.push(<text key="h3" x={outX + outW / 2} y={18} textAnchor="middle" fontFamily={T.font} fontSize={10} fill={T.c.warn}>{t('输出 a·b', 'out a·b')}</text>)
     gates.forEach((g, i) => {
       const cyc = top + i * rowH + rowH / 2
-      els.push(<text key={`dl${i}`} x={14} y={cyc + 4} fontFamily={T.font} fontSize={11} fill={T.c.dim}>维{i}</text>)
-      // 入口信号条
+      els.push(<text key={`dl${i}`} x={14} y={cyc + 4} fontFamily={T.font} fontSize={11} fill={T.c.dim}>{t('维', 'dim')}{i}</text>)
       els.push(<rect key={`inbg${i}`} x={inX} y={cyc - 7} width={inW} height={14} rx={3} fill={T.c.bgElev} stroke={T.c.border} />)
       els.push(<rect key={`in${i}`} x={inX} y={cyc - 7} width={inW * SIG[i]} height={14} rx={3} fill={T.c.accent} opacity={0.75} />)
-      // → 阀门
       els.push(<path key={`a1${i}`} d={`M${inX + inW + 4},${cyc} l10,0 m-4,-3 l4,3 l-4,3`} stroke={T.c.dim} strokeWidth={1.4} fill="none" />)
-      // 阀门框 + 上下挡板(开口 = clamp(g,0,1))
       const open = Math.max(0, Math.min(1, g)) * gH
       const oT = cyc - open / 2; const oB = cyc + open / 2
       els.push(<rect key={`gf${i}`} x={gX} y={cyc - gH / 2} width={gW} height={gH} rx={3} fill="none" stroke={T.c.border} strokeWidth={1.2} />)
@@ -93,9 +95,7 @@ export default function P2Ops({ prev, next }) {
       els.push(<rect key={`sb${i}`} x={gX} y={oB} width={gW} height={Math.max(0, (cyc + gH / 2) - oB)} fill={T.c.dim} opacity={0.55} />)
       if (open > 0) els.push(<rect key={`op${i}`} x={gX} y={oT} width={gW} height={open} fill={T.c.accent2} opacity={0.35} />)
       els.push(<text key={`gv${i}`} x={gX + gW / 2} y={cyc + gH / 2 + 12} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{g}({gateName(g)})</text>)
-      // 阀门 → 输出
       els.push(<path key={`a2${i}`} d={`M${gX + gW + 4},${cyc} l10,0 m-4,-3 l4,3 l-4,3`} stroke={T.c.dim} strokeWidth={1.4} fill="none" />)
-      // 输出条 = 信号 × 阀门
       const ov = SIG[i] * g
       els.push(<rect key={`outbg${i}`} x={outX} y={cyc - 7} width={outW} height={14} rx={3} fill={T.c.bgElev} stroke={T.c.border} />)
       els.push(<rect key={`out${i}`} x={outX} y={cyc - 7} width={Math.min(outW * 1.4, outW * ov)} height={14} rx={3} fill={T.c.warn} opacity={0.85} />)
@@ -114,24 +114,19 @@ export default function P2Ops({ prev, next }) {
   const tc = (c, s) => `\\textcolor{${c}}{${s}}`
   const par = (v) => (v < 0 ? `(${num(v)})` : num(v)) // 负数加括号,避免 ·-1.5
   const plus = (xStr, y) => (y < 0 ? `${xStr} - ${num(Math.abs(y))}` : `${xStr} + ${num(y)}`) // 带符号相加
-  // a_i 行项:coef · a_i,带正确正负号(用于第二项拼接)
-  const signTerm = (coef, aval) => {
-    const op2 = coef < 0 ? '-' : '+'
-    return ` ${op2} ${num(Math.abs(coef))}\\cdot${tc(CA, num(aval))}`
-  }
   const formula = (() => {
     if (op === 'add') {
-      const s = [a[0] + b[0], a[1] + b[1]]
+      const sm = [a[0] + b[0], a[1] + b[1]]
       return {
-        tex: `\\begin{aligned} ${tc(CA, 'a')}+${tc(CB, 'b')} &= ${vec(a[0], a[1], CA)} + ${vec(b[0], b[1], CB)} \\\\ &= \\begin{bmatrix} ${plus(num(a[0]), b[0])} \\\\ ${plus(num(a[1]), b[1])} \\end{bmatrix} = ${vec(s[0], s[1], CR)} \\end{aligned}`,
-        note: '对应维度各自相加,结果还是个向量(平移 / 合成)',
+        tex: `\\begin{aligned} ${tc(CA, 'a')}+${tc(CB, 'b')} &= ${vec(a[0], a[1], CA)} + ${vec(b[0], b[1], CB)} \\\\ &= \\begin{bmatrix} ${plus(num(a[0]), b[0])} \\\\ ${plus(num(a[1]), b[1])} \\end{bmatrix} = ${vec(sm[0], sm[1], CR)} \\end{aligned}`,
+        note: t('对应维度各自相加,结果还是个向量(平移 / 合成)', 'Add matching dimensions; the result is still a vector (translate / combine)'),
       }
     }
     if (op === 'scale') {
       const ka = [a[0] * k, a[1] * k]
       return {
         tex: `${tc(CR, 'k\\,a')} = ${num(k)}\\cdot${vec(a[0], a[1], CA)} = ${vec(ka[0], ka[1], CR)}`,
-        note: `每维同乘一个数:只改长度(${k < 0 ? 'k<0 还会反向' : '方向不变'})`,
+        note: t(`每维同乘一个数:只改长度(${k < 0 ? 'k<0 还会反向' : '方向不变'})`, `Multiply every dim by one number: length only (${k < 0 ? 'k<0 also flips' : 'direction unchanged'})`),
       }
     }
     if (op === 'dot') {
@@ -140,7 +135,7 @@ export default function P2Ops({ prev, next }) {
       const prod1 = `${tc(CA, num(a[1]))}\\cdot${tc(CB, par(b[1]))}`
       return {
         tex: `\\begin{aligned} ${tc(CA, 'a')}\\cdot${tc(CB, 'b')} &= ${prod0} + ${prod1} \\\\ &= ${plus(num(p0), p1)} = ${tc(CR, num(d))}\\ \\ (\\text{scalar}) \\end{aligned}`,
-        note: '逐维相乘再相加 → 一个标量,衡量两者多对齐(注意力打分 q·k 就是它)',
+        note: t('逐维相乘再相加 → 一个标量,衡量两者多对齐(注意力打分 q·k 就是它)', 'Multiply per-dim then sum → a scalar measuring alignment (this is the attention score q·k)'),
       }
     }
     if (op === 'matmul') {
@@ -150,17 +145,19 @@ export default function P2Ops({ prev, next }) {
       const Ma = [m00 * a[0] + m01 * a[1], m10 * a[0] + m11 * a[1]]
       const Mmat = `\\begin{bmatrix} ${num(m00)} & ${num(m01)} \\\\ ${num(m10)} & ${num(m11)} \\end{bmatrix}`
       const CD = '#9aa3b2' // 灰:对应图里 e₀/e₁ 的落点箭头
+      const land0 = t('落点', 'lands'); const colw = t('列', 'col')
       const col0 = tc(CD, `\\begin{bmatrix} ${num(m00)} \\\\ ${num(m10)} \\end{bmatrix}`)
       const col1 = tc(CD, `\\begin{bmatrix} ${num(m01)} \\\\ ${num(m11)} \\end{bmatrix}`)
       return {
-        tex: `\\begin{aligned} ${tc(CR, 'M')}\\,${tc(CA, 'a')} &= ${Mmat}\\,${vec(a[0], a[1], CA)} = ${tc(CA, num(a[0]))}\\,\\underbrace{${col0}}_{e_0\\,\\text{落点}=\\text{列}0} + ${tc(CA, num(a[1]))}\\,\\underbrace{${col1}}_{e_1\\,\\text{落点}=\\text{列}1} \\\\ &= ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
-        note: `M 的两列 = 基向量 e₀=(1,0)、e₁=(0,1) 变换后的落点(图里两根灰箭头);M·a 就是用 a 的分量 ${num(a[0])}、${num(a[1])} 去加权这两个落点`,
+        tex: `\\begin{aligned} ${tc(CR, 'M')}\\,${tc(CA, 'a')} &= ${Mmat}\\,${vec(a[0], a[1], CA)} = ${tc(CA, num(a[0]))}\\,\\underbrace{${col0}}_{e_0\\,\\text{${land0}}=\\text{${colw}}0} + ${tc(CA, num(a[1]))}\\,\\underbrace{${col1}}_{e_1\\,\\text{${land0}}=\\text{${colw}}1} \\\\ &= ${vec(Ma[0], Ma[1], CR)} \\end{aligned}`,
+        note: t(`M 的两列 = 基向量 e₀=(1,0)、e₁=(0,1) 变换后的落点(图里两根灰箭头);M·a 就是用 a 的分量 ${num(a[0])}、${num(a[1])} 去加权这两个落点`,
+          `The two columns of M = where basis vectors e₀=(1,0), e₁=(0,1) land (the two grey arrows); M·a weights these two landing points by a's components ${num(a[0])}, ${num(a[1])}`),
       }
     }
     const h = [a[0] * b[0], a[1] * b[1]]
     return {
       tex: `${tc(CA, 'a')}\\odot${tc(CB, 'b')} = \\begin{bmatrix} ${tc(CA, num(a[0]))}\\cdot${tc(CB, par(b[0]))} \\\\ ${tc(CA, num(a[1]))}\\cdot${tc(CB, par(b[1]))} \\end{bmatrix} = ${vec(h[0], h[1], CR)}`,
-      note: 'b 的每个分量是该维的「阀门」:逐维相乘、不求和 → 还是向量',
+      note: t('b 的每个分量是该维的「阀门」:逐维相乘、不求和 → 还是向量', "Each component of b is that dim's valve: multiply per-dim, no sum → still a vector"),
     }
   })()
 
@@ -177,7 +174,6 @@ export default function P2Ops({ prev, next }) {
       const sum = [a[0] + b[0], a[1] + b[1]]
       const Pb = P(b[0], b[1])
       const Ps = P(sum[0], sum[1])
-      // 平行四边形
       els.push(<line key="p1" x1={Pa[0]} y1={Pa[1]} x2={Ps[0]} y2={Ps[1]} stroke={T.c.accent2} strokeWidth={1} strokeDasharray="3 3" />)
       els.push(<line key="p2" x1={Pb[0]} y1={Pb[1]} x2={Ps[0]} y2={Ps[1]} stroke={T.c.accent} strokeWidth={1} strokeDasharray="3 3" />)
       els.push(arrow('a', ...O, ...Pa, T.c.accent))
@@ -189,7 +185,6 @@ export default function P2Ops({ prev, next }) {
     } else if (op === 'scale') {
       const ka = [a[0] * k, a[1] * k]
       const Pk = P(ka[0], ka[1])
-      // 方向直线
       els.push(<line key="ln" x1={cx - a[0] * unit * 3} y1={cy + a[1] * unit * 3} x2={cx + a[0] * unit * 3} y2={cy - a[1] * unit * 3}
         stroke={T.c.border} strokeWidth={1} strokeDasharray="2 4" />)
       els.push(arrow('ka', ...O, ...Pk, T.c.warn, 3))
@@ -202,10 +197,8 @@ export default function P2Ops({ prev, next }) {
       const aa = a[0] * a[0] + a[1] * a[1]
       const dotv = a[0] * b[0] + a[1] * b[1]
       const CP = '#d2a8ff' // 紫:b 投影到 a
-      // a 投影到 b(沿 b 方向)
       const footAB = [b[0] * (dotv / (bb || 1)), b[1] * (dotv / (bb || 1))]
       const Pfab = P(footAB[0], footAB[1])
-      // b 投影到 a(沿 a 方向)
       const footBA = [a[0] * (dotv / (aa || 1)), a[1] * (dotv / (aa || 1))]
       const Pfba = P(footBA[0], footBA[1])
       els.push(arrow('b', ...O, ...Pb, T.c.accent2))
@@ -220,52 +213,53 @@ export default function P2Ops({ prev, next }) {
       }
       els.push(<text key="la" x={Pa[0] + 6} y={Pa[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
       els.push(<text key="lb" x={Pb[0] + 6} y={Pb[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent2}>b</text>)
-      // 橙=a→b 投影、紫=b→a 投影,数值分解放到下方 LaTeX 面板(dotInfo)
     } else if (op === 'matmul') {
       const r = (th * Math.PI) / 180
-      const c0 = [s * Math.cos(r), s * Math.sin(r)] // M 第 1 列 = e0 的落点
-      const c1 = [-s * Math.sin(r), s * Math.cos(r)] // M 第 2 列 = e1 的落点
+      const c0 = [s * Math.cos(r), s * Math.sin(r)]
+      const c1 = [-s * Math.sin(r), s * Math.cos(r)]
       const Ma = [c0[0] * a[0] + c1[0] * a[1], c0[1] * a[0] + c1[1] * a[1]]
       const Pm = P(Ma[0], Ma[1])
       const Pc0 = P(c0[0], c0[1])
       const Pc1 = P(c1[0], c1[1])
-      // 基向量落点
       els.push(arrow('c0', ...O, ...Pc0, T.c.dim, 1.6))
       els.push(arrow('c1', ...O, ...Pc1, T.c.dim, 1.6))
-      els.push(<text key="lc0" x={Pc0[0] + 4} y={Pc0[1] + 12} fontFamily={T.font} fontSize={9} fill={T.c.dim}>e₀→列0</text>)
-      els.push(<text key="lc1" x={Pc1[0] + 4} y={Pc1[1] - 4} fontFamily={T.font} fontSize={9} fill={T.c.dim}>e₁→列1</text>)
+      els.push(<text key="lc0" x={Pc0[0] + 4} y={Pc0[1] + 12} fontFamily={T.font} fontSize={9} fill={T.c.dim}>{t('e₀→列0', 'e₀→col0')}</text>)
+      els.push(<text key="lc1" x={Pc1[0] + 4} y={Pc1[1] - 4} fontFamily={T.font} fontSize={9} fill={T.c.dim}>{t('e₁→列1', 'e₁→col1')}</text>)
       els.push(arrow('a', ...O, ...Pa, T.c.accent))
       els.push(arrow('Ma', ...O, ...Pm, T.c.warn, 3))
       els.push(<text key="la" x={Pa[0] + 6} y={Pa[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
       els.push(<text key="lm" x={Pm[0] + 6} y={Pm[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.warn}>M·a</text>)
       els.push(<text key="mm" x={30} y={cy + R * unit + 20} fontFamily={T.font} fontSize={10} fill={T.c.dim}>
-        M = 旋转 {th}° + 缩放 {s}×。灰箭头是两个基向量被搬去的新落点 = M 的两列</text>)
+        {t(`M = 旋转 ${th}° + 缩放 ${s}×。灰箭头是两个基向量被搬去的新落点 = M 的两列`, `M = rotate ${th}° + scale ${s}×. Grey arrows = where the two basis vectors land = M's two columns`)}</text>)
     } else if (op === 'hadamard') {
       const h = [a[0] * b[0], a[1] * b[1]]
       const Ph = P(h[0], h[1])
       const Pb = P(b[0], b[1])
-      // 每轴缩放:a 的分量(虚线落到坐标轴)→ h 的分量,差距 = ×b_i
       const axA = P(a[0], 0); const axH = P(h[0], 0)
       const ayA = P(0, a[1]); const ayH = P(0, h[1])
       els.push(<line key="gxa" x1={Pa[0]} y1={Pa[1]} x2={axA[0]} y2={axA[1]} stroke={T.c.accent} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
       els.push(<line key="gxh" x1={Ph[0]} y1={Ph[1]} x2={axH[0]} y2={axH[1]} stroke={T.c.warn} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
       els.push(<line key="gya" x1={Pa[0]} y1={Pa[1]} x2={ayA[0]} y2={ayA[1]} stroke={T.c.accent} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
       els.push(<line key="gyh" x1={Ph[0]} y1={Ph[1]} x2={ayH[0]} y2={ayH[1]} stroke={T.c.warn} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />)
-      els.push(<text key="sx" x={(axA[0] + axH[0]) / 2} y={cy + 14} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>维0 ×{b[0]}</text>)
-      els.push(<text key="sy" x={cx - 10} y={(ayA[1] + ayH[1]) / 2} textAnchor="end" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>维1 ×{b[1]}</text>)
+      els.push(<text key="sx" x={(axA[0] + axH[0]) / 2} y={cy + 14} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{t('维0 ×', 'dim0 ×')}{b[0]}</text>)
+      els.push(<text key="sy" x={cx - 10} y={(ayA[1] + ayH[1]) / 2} textAnchor="end" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{t('维1 ×', 'dim1 ×')}{b[1]}</text>)
       els.push(arrow('b', ...O, ...Pb, T.c.accent2))
       els.push(arrow('a', ...O, ...Pa, T.c.accent))
       els.push(arrow('h', ...O, ...Ph, T.c.warn, 3))
-      els.push(<text key="lb" x={Pb[0] - 6} y={Pb[1] - 4} textAnchor="end" fontFamily={T.font} fontSize={11} fill={T.c.accent2}>b(阀门)</text>)
+      els.push(<text key="lb" x={Pb[0] - 6} y={Pb[1] - 4} textAnchor="end" fontFamily={T.font} fontSize={11} fill={T.c.accent2}>{t('b(阀门)', 'b (valve)')}</text>)
       els.push(<text key="la" x={Pa[0] + 8} y={Pa[1] + 12} fontFamily={T.font} fontSize={11} fill={T.c.accent}>a</text>)
       els.push(<text key="lh" x={Ph[0] + 6} y={Ph[1] - 4} fontFamily={T.font} fontSize={11} fill={T.c.warn}>a⊙b</text>)
       els.push(<text key="hh" x={30} y={cy + R * unit + 20} fontFamily={T.font} fontSize={11} fill={T.c.dim}>
-        b 不和 a 合成方向,而是<tspan fill={T.c.accent2}>逐维当阀门</tspan>:维0 ×{b[0]}、维1 ×{b[1]}(虚线看每轴被拉伸多少)</text>)
+        {lang === 'en'
+          ? <>b doesn't combine directions with a — it <tspan fill={T.c.accent2}>gates per dim</tspan>: dim0 ×{b[0]}, dim1 ×{b[1]} (dashed = how much each axis is stretched)</>
+          : <>b 不和 a 合成方向,而是<tspan fill={T.c.accent2}>逐维当阀门</tspan>:维0 ×{b[0]}、维1 ×{b[1]}(虚线看每轴被拉伸多少)</>}</text>)
     }
 
-    // 顶部说明
-    els.push(<text key="cap" x={30} y={16} fontFamily={T.font} fontSize={11} fill={T.c.accent}>{cur.cap}</text>)
-    const W = cx + R * unit + 130
+    const capText = t(cur.cap, cur.capEn)
+    els.push(<text key="cap" x={30} y={16} fontFamily={T.font} fontSize={11} fill={T.c.accent}>{capText}</text>)
+    // 按标题文本宽度兜底,避免英文更长时被裁切(CJK≈11、ASCII≈6.4)
+    const capW = 30 + [...capText].reduce((w, ch) => w + (ch.charCodeAt(0) > 255 ? 11 : 6.4), 0) + 16
+    const W = Math.max(cx + R * unit + 150, capW)
     const H = cy + R * unit + 46
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
@@ -285,7 +279,7 @@ export default function P2Ops({ prev, next }) {
         {OPS.map((o) => (
           <button key={o.k} className="btn" onClick={() => setOp(o.k)}
             style={{ padding: '2px 9px', fontSize: 11, background: op === o.k ? 'var(--accent)' : 'var(--bg)',
-              color: op === o.k ? '#0f1115' : 'var(--text-dim)', fontWeight: op === o.k ? 700 : 400 }}>{o.label}</button>
+              color: op === o.k ? '#0f1115' : 'var(--text-dim)', fontWeight: op === o.k ? 700 : 400 }}>{t(o.label, o.labelEn)}</button>
         ))}
       </div>
       {slider('a.x', a[0], (v) => setA([v, a[1]]), -4, 4, 0.5)}
@@ -294,8 +288,8 @@ export default function P2Ops({ prev, next }) {
       {needsB && slider('b.y', b[1], (v) => setB([b[0], v]), -4, 4, 0.5, 'var(--accent2)')}
       {op === 'dot' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ color: 'var(--text-dim)' }}>投影方向</span>
-          {[['ab', 'a→b'], ['ba', 'b→a'], ['both', '两者']].map(([k2, lbl]) => (
+          <span style={{ color: 'var(--text-dim)' }}>{t('投影方向', 'projection')}</span>
+          {[['ab', 'a→b'], ['ba', 'b→a'], ['both', t('两者', 'both')]].map(([k2, lbl]) => (
             <button key={k2} className="btn" onClick={() => setProjDir(k2)}
               style={{ padding: '2px 9px', fontSize: 11, background: projDir === k2 ? 'var(--accent)' : 'var(--bg)',
                 color: projDir === k2 ? '#0f1115' : 'var(--text-dim)', fontWeight: projDir === k2 ? 700 : 400 }}>{lbl}</button>
@@ -303,59 +297,100 @@ export default function P2Ops({ prev, next }) {
         </div>
       )}
       {op === 'scale' && slider('k', k, setK, -2, 3, 0.1, 'var(--warn)')}
-      {op === 'matmul' && slider('旋转°', th, setTh, -180, 180, 5, 'var(--warn)')}
-      {op === 'matmul' && slider('缩放', s, setS, 0.2, 2, 0.1, 'var(--warn)')}
+      {op === 'matmul' && slider(t('旋转°', 'rot°'), th, setTh, -180, 180, 5, 'var(--warn)')}
+      {op === 'matmul' && slider(t('缩放', 'scale'), s, setS, 0.2, 2, 0.1, 'var(--warn)')}
     </div>
   )
 
   return (
-    <ChapterLayout kicker="预备知识 · P2" title="五种核心运算的几何意义" prev={prev} next={next}>
+    <ChapterLayout
+      kicker={t('预备知识 · P2', 'Prerequisites · P2')}
+      title={t('五种核心运算的几何意义', 'Geometry of Five Core Operations')}
+      prev={prev}
+      next={next}
+      translated
+    >
       <>
-        <p>
-          上一节把向量看成<b>箭头</b>。这一节把后面会反复出现的<b>五种运算</b>一次性讲透——
-          关键不是怎么算,而是<b>几何上它在做什么</b>。这也正好接上你之前问的「向量相乘和相加的区别」。
-        </p>
-        <table className="ver-table">
-          <thead><tr><th>运算</th><th>几何动作</th><th>结果</th><th>LLM 里在哪</th></tr></thead>
-          <tbody>
-            <tr><td><b>加法</b> a+b</td><td>平移 / 合成(平行四边形)</td><td>向量</td><td>残差连接</td></tr>
-            <tr><td><b>数乘</b> k·a</td><td>缩放(只改长度/反向)</td><td>向量</td><td>归一化 ÷RMS</td></tr>
-            <tr><td><b>点积</b> a·b</td><td>投影 / 看多对齐</td><td><b>标量</b></td><td>注意力打分 q·k</td></tr>
-            <tr><td><b>矩阵乘</b> M·a</td><td>旋转+缩放,搬到新位置</td><td>向量</td><td>Q/K/V 投影、FFN</td></tr>
-            <tr><td><b>逐元素乘</b> a⊙b</td><td>按轴门控(逐维阀门)</td><td>向量</td><td>SwiGLU 门控</td></tr>
-          </tbody>
-        </table>
-        <h2>三个最容易混的点</h2>
-        <ul>
-          <li><b>加法 vs 矩阵乘</b>:加法只是<b>平移</b>(把箭头挪一下);矩阵乘会<b>重塑整个空间</b>(旋转+缩放),
-            是质变。残差用加法(温和地累加修正),投影用矩阵乘(换一个表示空间)。</li>
-          <li><b>点积 vs 逐元素乘</b>:都"相乘",但点积把对应维度乘完<b>加起来 → 一个标量</b>(衡量对齐);
-            逐元素乘<b>不求和 → 还是向量</b>(每维各自缩放)。注意力打分要标量,所以用点积;门控要逐维开关,所以用逐元素乘。</li>
-          <li><b>矩阵乘的列</b>:M·a 的本质是「a 的每个分量,决定各个<b>基向量新落点</b>的加权和」。
-            右图灰箭头就是基向量被搬去哪——看懂这个,投影矩阵就不神秘了。</li>
-        </ul>
-        <div className="note">
-          切换右边的运算、拖动 a/b,看同样两个向量在不同运算下去了哪里。
-          这五个动作几乎拼出了整个 Transformer:<b>投影(矩阵乘)→ 打分(点积)→ 汇总(加权=数乘+加法)→ 残差(加法)→ 门控(逐元素乘)</b>。
-        </div>
+        {lang === 'en' ? (
+          <>
+            <p>
+              Last section saw a vector as an <b>arrow</b>. This one nails the <b>five operations</b> that recur everywhere —
+              the point isn't how to compute them but <b>what they do geometrically</b>. This also answers the earlier question about "adding vs multiplying vectors".
+            </p>
+            <table className="ver-table">
+              <thead><tr><th>Operation</th><th>Geometric action</th><th>Result</th><th>Where in an LLM</th></tr></thead>
+              <tbody>
+                <tr><td><b>Add</b> a+b</td><td>translate / combine (parallelogram)</td><td>vector</td><td>residual connection</td></tr>
+                <tr><td><b>Scale</b> k·a</td><td>scaling (length / flip only)</td><td>vector</td><td>normalization ÷RMS</td></tr>
+                <tr><td><b>Dot</b> a·b</td><td>projection / alignment</td><td><b>scalar</b></td><td>attention score q·k</td></tr>
+                <tr><td><b>MatMul</b> M·a</td><td>rotate + scale, move to a new place</td><td>vector</td><td>Q/K/V projection, FFN</td></tr>
+                <tr><td><b>Elementwise</b> a⊙b</td><td>per-axis gating (per-dim valve)</td><td>vector</td><td>SwiGLU gating</td></tr>
+              </tbody>
+            </table>
+            <h2>Three easily-confused points</h2>
+            <ul>
+              <li><b>Add vs MatMul</b>: add is just a <b>translation</b> (nudge the arrow); matmul <b>reshapes the whole space</b> (rotate + scale) — a qualitative change.
+                Residuals use add (gently accumulate corrections); projections use matmul (switch to a new representation space).</li>
+              <li><b>Dot vs Elementwise</b>: both "multiply", but dot multiplies matching dims and <b>sums → one scalar</b> (measures alignment);
+                elementwise <b>doesn't sum → still a vector</b> (each dim scaled on its own). Attention scores need a scalar, so they use the dot product; gating needs per-dim switches, so it uses elementwise.</li>
+              <li><b>Columns of a matrix</b>: M·a is really "each component of a weights where each <b>basis vector lands</b>".
+                The grey arrows on the right show where the basis vectors go — get this and projection matrices stop being mysterious.</li>
+            </ul>
+            <div className="note">
+              Switch the operation on the right and drag a/b to see where the same two vectors go under each op.
+              These five actions nearly assemble the whole Transformer: <b>project (matmul) → score (dot) → aggregate (weighted = scale + add) → residual (add) → gate (elementwise)</b>.
+            </div>
+          </>
+        ) : (
+          <>
+            <p>
+              上一节把向量看成<b>箭头</b>。这一节把后面会反复出现的<b>五种运算</b>一次性讲透——
+              关键不是怎么算,而是<b>几何上它在做什么</b>。这也正好接上你之前问的「向量相乘和相加的区别」。
+            </p>
+            <table className="ver-table">
+              <thead><tr><th>运算</th><th>几何动作</th><th>结果</th><th>LLM 里在哪</th></tr></thead>
+              <tbody>
+                <tr><td><b>加法</b> a+b</td><td>平移 / 合成(平行四边形)</td><td>向量</td><td>残差连接</td></tr>
+                <tr><td><b>数乘</b> k·a</td><td>缩放(只改长度/反向)</td><td>向量</td><td>归一化 ÷RMS</td></tr>
+                <tr><td><b>点积</b> a·b</td><td>投影 / 看多对齐</td><td><b>标量</b></td><td>注意力打分 q·k</td></tr>
+                <tr><td><b>矩阵乘</b> M·a</td><td>旋转+缩放,搬到新位置</td><td>向量</td><td>Q/K/V 投影、FFN</td></tr>
+                <tr><td><b>逐元素乘</b> a⊙b</td><td>按轴门控(逐维阀门)</td><td>向量</td><td>SwiGLU 门控</td></tr>
+              </tbody>
+            </table>
+            <h2>三个最容易混的点</h2>
+            <ul>
+              <li><b>加法 vs 矩阵乘</b>:加法只是<b>平移</b>(把箭头挪一下);矩阵乘会<b>重塑整个空间</b>(旋转+缩放),
+                是质变。残差用加法(温和地累加修正),投影用矩阵乘(换一个表示空间)。</li>
+              <li><b>点积 vs 逐元素乘</b>:都"相乘",但点积把对应维度乘完<b>加起来 → 一个标量</b>(衡量对齐);
+                逐元素乘<b>不求和 → 还是向量</b>(每维各自缩放)。注意力打分要标量,所以用点积;门控要逐维开关,所以用逐元素乘。</li>
+              <li><b>矩阵乘的列</b>:M·a 的本质是「a 的每个分量,决定各个<b>基向量新落点</b>的加权和」。
+                右图灰箭头就是基向量被搬去哪——看懂这个,投影矩阵就不神秘了。</li>
+            </ul>
+            <div className="note">
+              切换右边的运算、拖动 a/b,看同样两个向量在不同运算下去了哪里。
+              这五个动作几乎拼出了整个 Transformer:<b>投影(矩阵乘)→ 打分(点积)→ 汇总(加权=数乘+加法)→ 残差(加法)→ 门控(逐元素乘)</b>。
+            </div>
+          </>
+        )}
         <Refs ids={['1706.03762', '1910.07467', '2002.05202']} />
       </>
       <>
-        <h3>五种运算 · 同两个向量,不同去向</h3>
+        <h3>{t('五种运算 · 同两个向量,不同去向', 'Five ops · same two vectors, different destinations')}</h3>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          蓝=a,绿=b,橙=运算结果。切换运算按钮,拖滑块实时看几何变化。
+          {t('蓝=a,绿=b,橙=运算结果。切换运算按钮,拖滑块实时看几何变化。',
+            'Blue = a, green = b, orange = result. Switch the operation and drag sliders to see the geometry change live.')}
         </p>
         <FigureBoard renderSvg={render} baseCell={22} fullCell={34} controls={controls} />
         <div style={{ marginTop: 10, background: 'var(--bg)', border: '1px solid var(--border)',
           borderRadius: 10, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>数值公式(随滑块实时变,对照右图箭头)</div>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>{t('数值公式(随滑块实时变,对照右图箭头)', 'Numeric formula (updates with sliders, matches the arrows)')}</div>
           <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{formula.tex}</Tex></div>
           <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>{formula.note}</div>
         </div>
 
         {op === 'dot' && (
           <div style={{ marginTop: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>投影分解 &amp; 交换律(<span style={{ color: '#f0a35e' }}>橙 a→b</span> / <span style={{ color: '#d2a8ff' }}>紫 b→a</span>,随滑块实时变)</div>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>{t('投影分解 & 交换律', 'Projection breakdown & commutativity')}(<span style={{ color: '#f0a35e' }}>{t('橙 a→b', 'orange a→b')}</span> / <span style={{ color: '#d2a8ff' }}>{t('紫 b→a', 'purple b→a')}</span>)</div>
             <div style={{ fontSize: 16, overflowX: 'auto' }}><Tex block>{dotInfo.tex}</Tex></div>
             <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6 }}>{dotInfo.note}</div>
           </div>
@@ -363,16 +398,16 @@ export default function P2Ops({ prev, next }) {
 
         {op === 'hadamard' && (
           <div style={{ marginTop: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>🚰 门控直觉:把 <b style={{ color: 'var(--accent2)' }}>b</b> 当一排「阀门」</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>🚰 {t('门控直觉:把 ', 'Gating intuition: treat ')}<b style={{ color: 'var(--accent2)' }}>b</b>{t(' 当一排「阀门」', ' as a row of "valves"')}</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>
-              每一维是一根独立的水管,信号 a 从左流入,阀门 b 决定<b>放行多少</b>:
-              关(×0)断流、半开(×0.5)减半、全开(×1)原样、放大(×1.5)加压。拖下面的阀门试试。
+              {t('每一维是一根独立的水管,信号 a 从左流入,阀门 b 决定放行多少:关(×0)断流、半开(×0.5)减半、全开(×1)原样、放大(×1.5)加压。拖下面的阀门试试。',
+                'Each dim is an independent pipe; signal a flows in from the left, valve b decides how much passes: off (×0) blocks, half (×0.5) halves, open (×1) as-is, amplify (×1.5) boosts. Try the valves below.')}
             </div>
             <div style={{ overflowX: 'auto' }}>{renderGate()}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
               {gates.map((g, i) => (
                 <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                  <span style={{ color: 'var(--text-dim)' }}>维{i}阀门</span>
+                  <span style={{ color: 'var(--text-dim)' }}>{t('维', 'dim')}{i}{t('阀门', ' valve')}</span>
                   <input type="range" min={0} max={2} step={0.25} value={g}
                     onChange={(e) => setGates(gates.map((x, j) => (j === i ? +e.target.value : x)))} style={{ width: 80 }} />
                   <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent2)', width: 28 }}>{g}</b>
@@ -380,12 +415,13 @@ export default function P2Ops({ prev, next }) {
               ))}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 8 }}>
-              这就是 SwiGLU 里的门控:一条支路算出「内容值」,另一条算出「每维该开多大的阀门」,两者逐元素相乘 —— 模型借此<b>动态决定每个特征放行多少</b>。
+              {t('这就是 SwiGLU 里的门控:一条支路算出「内容值」,另一条算出「每维该开多大的阀门」,两者逐元素相乘 —— 模型借此动态决定每个特征放行多少。',
+                'This is SwiGLU gating: one branch computes the "content value", another computes "how far to open each dim\'s valve", and they multiply elementwise — letting the model dynamically decide how much of each feature to pass.')}
             </div>
           </div>
         )}
 
-        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 10 }}>{cur.cap} &nbsp;·&nbsp; <b style={{ color: 'var(--accent2)' }}>{cur.llm}</b></p>
+        <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 10 }}>{t(cur.cap, cur.capEn)} &nbsp;·&nbsp; <b style={{ color: 'var(--accent2)' }}>{t(cur.llm, cur.llmEn)}</b></p>
       </>
     </ChapterLayout>
   )
