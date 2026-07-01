@@ -10,6 +10,10 @@ import { rmsNorm } from '../lib/norm.js'
 import { attention } from '../lib/attention.js'
 import { swiglu } from '../lib/ffn.js'
 import { softmax } from '../lib/softmax.js'
+import { useLang, useT } from '../i18n/lang.jsx'
+
+// 估算一段文本的像素宽(CJK≈11、ASCII≈6.4),给 SVG 留够宽度、防英文更长时裁切。
+const estTextW = (s) => [...String(s)].reduce((w, ch) => w + (ch.charCodeAt(0) > 255 ? 11 : 6.4), 0)
 
 const D = 4
 const DFF = 8
@@ -17,6 +21,8 @@ const SEQ = 'the cat sat on mat'.split(' ')
 const VOCAB = 'the cat sat on mat dog ran .'.split(' ') // toy 词表
 
 export default function Ch08Block({ prev, next }) {
+  const t = useT()
+  const { lang } = useLang()
   const [n, setN] = useState(4)
   const [f, setF] = useState(3)
   const [Nl, setNl] = useState(4) // 堆叠层数(示意)
@@ -88,27 +94,29 @@ export default function Ch08Block({ prev, next }) {
       els.push(<polyline key={`arc${fromCx}-${toPx}`} points={`${fromCx},${cy - C / 2 - 2} ${fromCx},${arcY} ${toPx},${arcY} ${toPx},${cy - 13}`} fill="none" stroke={T.c.accent2} strokeWidth={1.3} strokeDasharray="4 3" />)
     }
 
-    const cxX = hb(blk.x, { title: `x「${tokens[fi]}」`, stroke: T.c.accent })
+    const cxX = hb(blk.x, { title: `${t('x「', 'x "')}${tokens[fi]}${t('」', '"')}`, stroke: T.c.accent })
     op('RMSNorm→', 60)
     hb(blk.xhat1, { title: 'x̂' })
-    op('多头注意力→', 70, T.c.accent)
+    op(t('多头注意力→', 'multi-head attn →'), lang === 'en' ? 122 : 70, T.c.accent)
     hb(blk.d1, { title: 'Δ₁', stroke: T.c.warn })
     const p1 = plus()
     op('=', 18)
     const cxX1 = hb(blk.x1, { title: "x' ", stroke: T.c.accent2 })
     op('RMSNorm→', 60)
     hb(blk.xhat2, { title: 'x̂' })
-    op('FFN(SwiGLU)→', 78, T.c.accent)
+    op(t('FFN(SwiGLU)→', 'FFN (SwiGLU) →'), lang === 'en' ? 100 : 78, T.c.accent)
     hb(blk.d2, { title: 'Δ₂', stroke: T.c.warn })
     const p2 = plus()
     op('=', 18)
-    hb(blk.x2, { title: "x'' 出块", stroke: T.c.accent2 })
+    const cxLast = hb(blk.x2, { title: t("x'' 出块", "x'' out"), stroke: T.c.accent2 })
 
     arc(cxX, p1)
     arc(cxX1, p2)
-    els.push(<text key="sub1" x={(cxX + p1) / 2} y={arcY - 5} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>注意力子块:残差直连</text>)
-    els.push(<text key="sub2" x={(cxX1 + p2) / 2} y={arcY - 5} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>FFN 子块:残差直连</text>)
-    const W = x + 16
+    const sub1t = t('注意力子块:残差直连', 'Attention sublayer: residual skip')
+    const sub2t = t('FFN 子块:残差直连', 'FFN sublayer: residual skip')
+    els.push(<text key="sub1" x={(cxX + p1) / 2} y={arcY - 5} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{sub1t}</text>)
+    els.push(<text key="sub2" x={(cxX1 + p2) / 2} y={arcY - 5} textAnchor="middle" fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{sub2t}</text>)
+    const W = Math.max(x + 16, cxLast + estTextW(t("x'' 出块", "x'' out")) / 2 + 8)
     return <svg width={W} height={cy + C / 2 + 24} style={{ display: 'block', minWidth: W }}>{els}</svg>
   }
 
@@ -116,10 +124,10 @@ export default function Ch08Block({ prev, next }) {
   const renderStack = () => {
     const bw = 250, bh = 26, gap = 9, x0 = 80
     const rows = []
-    rows.push({ t: '输出头 → 下一个词 logits', c: T.c.accent2, kind: 'io' })
-    rows.push({ t: '最终 RMSNorm', c: T.c.dim, kind: 'norm' })
-    for (let k = Nl; k >= 1; k--) rows.push({ t: `Block ${k} · 多头注意力 + FFN`, c: T.c.accent, kind: 'block' })
-    rows.push({ t: '词嵌入 + 位置编码', c: T.c.accent2, kind: 'io' })
+    rows.push({ t: t('输出头 → 下一个词 logits', 'Output head → next-word logits'), c: T.c.accent2, kind: 'io' })
+    rows.push({ t: t('最终 RMSNorm', 'Final RMSNorm'), c: T.c.dim, kind: 'norm' })
+    for (let k = Nl; k >= 1; k--) rows.push({ t: `Block ${k} · ${t('多头注意力 + FFN', 'multi-head attn + FFN')}`, c: T.c.accent, kind: 'block' })
+    rows.push({ t: t('词嵌入 + 位置编码', 'Token embedding + positions'), c: T.c.accent2, kind: 'io' })
     const els = []
     rows.forEach((r, i) => {
       const y = 14 + i * (bh + gap)
@@ -131,10 +139,13 @@ export default function Ch08Block({ prev, next }) {
     })
     // 残差流标注
     const totalH = 14 + rows.length * (bh + gap)
-    els.push(<text key="resi" x={x0 - 8} y={totalH / 2} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>残差流↑</text>)
-    els.push(<text key="rep" x={x0 + bw + 12} y={14 + 2.5 * (bh + gap) + bh / 2} fontFamily={T.font} fontSize={10} fill={T.c.dim}>↕ 同一结构</text>)
-    els.push(<text key="rep2" x={x0 + bw + 12} y={14 + 2.5 * (bh + gap) + bh / 2 + 13} fontFamily={T.font} fontSize={10} fill={T.c.dim}>重复 N 层(各层权重不同)</text>)
-    return <svg width={x0 + bw + 180} height={totalH + 8} style={{ display: 'block' }}>{els}</svg>
+    const rep1 = t('↕ 同一结构', '↕ same structure')
+    const rep2 = t('重复 N 层(各层权重不同)', 'repeat N layers (weights differ)')
+    els.push(<text key="resi" x={x0 - 8} y={totalH / 2} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>{t('残差流↑', 'residual ↑')}</text>)
+    els.push(<text key="rep" x={x0 + bw + 12} y={14 + 2.5 * (bh + gap) + bh / 2} fontFamily={T.font} fontSize={10} fill={T.c.dim}>{rep1}</text>)
+    els.push(<text key="rep2" x={x0 + bw + 12} y={14 + 2.5 * (bh + gap) + bh / 2 + 13} fontFamily={T.font} fontSize={10} fill={T.c.dim}>{rep2}</text>)
+    const W = Math.max(x0 + bw + 180, x0 + bw + 12 + estTextW(rep2) + 12)
+    return <svg width={W} height={totalH + 8} style={{ display: 'block' }}>{els}</svg>
   }
 
   // ───────── 图 3:输出头 —— 残差怎么变 logits ─────────
@@ -162,25 +173,25 @@ export default function Ch08Block({ prev, next }) {
       x += row.length * C
     }
     const op = (sym, wd) => { els.push(<text key={`op${x}`} x={x + wd / 2} y={cy} textAnchor="middle" dominantBaseline="middle" fontFamily={T.font} fontSize={10} fill={T.c.dim}>{sym}</text>); x += wd }
-    hb(head.h, { title: '最终残差 h(归一后,d维)', vmax: vmaxH })
+    hb(head.h, { title: t('最终残差 h(归一后,d维)', 'final h (normed, d-dim)'), vmax: vmaxH })
     op('×W_U →', 56)
-    hb(head.logits, { title: `logits(每个词一个分,V=${V})`, vmax: vmaxL, labels: VOCAB, hi: head.am })
+    hb(head.logits, { title: t('logits(每个词一个分,V=', 'logits (one score/word, V=') + V + ')', vmax: vmaxL, labels: VOCAB, hi: head.am })
     op('softmax→', 56)
-    hb(head.probs, { title: '概率', vmax: 1, dec: 2, labels: VOCAB, hi: head.am })
-    op(`→ 「${VOCAB[head.am]}」`, 70)
+    hb(head.probs, { title: t('概率', 'probabilities'), vmax: 1, dec: 2, labels: VOCAB, hi: head.am })
+    op(`→ ${t('「', '"')}${VOCAB[head.am]}${t('」', '"')}`, 70)
     return <svg width={x + 16} height={cy + C / 2 + 28} style={{ display: 'block', minWidth: x + 16 }}>{els}</svg>
   }
 
   const controls = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--text-dim)', width: 64 }}>聚焦 token</span>
+        <span style={{ color: 'var(--text-dim)', width: 64 }}>{t('聚焦 token', 'focus token')}</span>
         <input type="range" min={0} max={n - 1} step={1} value={fi}
           onChange={(e) => setF(Math.round(+e.target.value))} style={{ width: 120 }} />
         <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{tokens[fi]}</b>
       </label>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--text-dim)', width: 64 }}>序列长度</span>
+        <span style={{ color: 'var(--text-dim)', width: 64 }}>{t('序列长度', 'seq length')}</span>
         <input type="range" min={2} max={5} step={1} value={n}
           onChange={(e) => setN(Math.round(+e.target.value))} style={{ width: 120 }} />
         <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{n}</b>
@@ -189,68 +200,136 @@ export default function Ch08Block({ prev, next }) {
   )
 
   return (
-    <ChapterLayout kicker="第 8 章 · Transformer Block" title="Transformer Block(把一切拼起来)" prev={prev} next={next}>
+    <ChapterLayout
+      kicker={t('第 8 章 · Transformer Block', 'Chapter 8 · Transformer Block')}
+      title={t('Transformer Block(把一切拼起来)', 'Transformer Block (putting it all together)')}
+      prev={prev}
+      next={next}
+      translated
+    >
       <>
-        <p>
-          前几章的零件齐了:<b>多头注意力</b>(4、5 章)、<b>FFN/SwiGLU</b>(6 章)、
-          <b>残差 + RMSNorm</b>(7 章)。这一章把它们拼成<b>一个完整的层(Block)</b>,再堆叠。
-        </p>
-        <h2>一个 Block = 两个同构子块</h2>
-        <p>
-          一个 Transformer Block 顺序做<b>两件事</b>,而且<b>结构完全一样</b>:
-        </p>
-        <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--accent-2)' }}>
-          x ← x + 多头注意力( RMSNorm(x) )<br />
-          x ← x + FFN( RMSNorm(x) )
-        </p>
-        <ul>
-          <li><b>注意力子块</b>:跨 token 搬运信息(谁该看谁)。</li>
-          <li><b>FFN 子块</b>:逐 token 加工(每个 token 自己想)。</li>
-          <li>两个子块都是同一个套路:<b>RMSNorm → 子层 → 残差加回</b>(右上图两段虚线一模一样)。</li>
-        </ul>
-        <h2>堆叠 N 层</h2>
-        <p>
-          把这个 Block <b>重复 N 层</b>(每层权重不同),就是模型主体。
-          词嵌入从底部进,残差流逐层被精炼,顶部<b>最终 RMSNorm</b> 后接<b>输出头</b>得到下一个词的分数。
-          DeepSeek-V3/V4 有 <b>61 层</b>这样的 Block。
-        </p>
-        <h2>残差怎么变成 logits</h2>
-        <p>
-          最后一层出来,每个 token 还是一个 d 维残差 <b>h</b>。怎么变成「下一个词」?
-          经<b>最终 RMSNorm</b>,再过<b>输出头 W_U</b>(d×V,V=词表大小):
-          <code> logits = h · W_U</code> —— 词表每个词一个分数。
-          每个词在 W_U 里占一列(它的「方向」),<b>h 和它点积 = 该词的 logit</b>;
-          h 和谁越对齐,谁分越高。再 softmax 成概率(采样见 Ch10)。
-        </p>
-        <div className="note">
-          真实词表 <b>V 一般 3 万 ~ 26 万</b>(LLaMA2 3.2 万、GPT-2/3 约 5 万、GPT-4 约 10 万、
-          <b>DeepSeek-V3 ≈ 12.8 万</b>、Gemma 26 万);本页 toy 只用 <b>V={VOCAB.length}</b>。
-          词表越大,一句话拆得越少(更省),但 W_U(V×d)越大——DeepSeek-V3 光输出头就约 <b>9 亿参数</b>。
-        </div>
-        <div className="note" style={{ marginTop: 8 }}>
-          <b>权重绑定</b>(weight tying):让 W_U = Ch02 <b>嵌入矩阵的转置</b>,同一张表正反用,省一份 V×d 参数。
-          这是 <b>GPT-2/BERT 等早期/小模型</b>的常见做法;但很多大模型(含 <b>DeepSeek-V3</b>、Llama 3)<b>不绑定</b>
-          (<code>tie_word_embeddings=false</code>)——这正是 V3 的输出头能<b>单独</b>有约 9 亿参数的原因。
-        </div>
-        <div className="note" style={{ marginTop: 8 }}>
-          为什么"同一结构重复"如此强大:每层都能在残差流上<b>加一笔精炼</b>,
-          浅层多管局部/语法,深层多管语义/推理——同样的积木,堆得越深、能力越强。
-        </div>
-        <div className="note" style={{ marginTop: 8 }}>
-          通往 DeepSeek:V2 起把这里的<b>注意力子块</b>换成 <b>MLA</b>(11 章)、
-          <b>FFN 子块</b>换成 <b>MoE</b>(12 章),V4 再把注意力换成 <b>CSA/HCA</b>(16 章)——
-          <b>Block 的骨架不变,只换两个子块的内部实现</b>。
-        </div>
+        {lang === 'en' ? (
+          <>
+            <p>
+              The building blocks from earlier chapters are ready: <b>multi-head attention</b> (Ch. 4, 5),
+              <b> FFN / SwiGLU</b> (Ch. 6), <b>residual + RMSNorm</b> (Ch. 7). This chapter assembles them into
+              <b> one complete layer (a Block)</b>, then stacks it.
+            </p>
+            <h2>One Block = two isomorphic sublayers</h2>
+            <p>
+              A Transformer Block does <b>two things</b> in sequence, and their <b>structure is identical</b>:
+            </p>
+            <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--accent-2)' }}>
+              x ← x + multi-head attn( RMSNorm(x) )<br />
+              x ← x + FFN( RMSNorm(x) )
+            </p>
+            <ul>
+              <li><b>Attention sublayer</b>: moves information across tokens (who should look at whom).</li>
+              <li><b>FFN sublayer</b>: processes each token on its own (every token "thinks" for itself).</li>
+              <li>Both sublayers follow the same recipe: <b>RMSNorm → sublayer → add back via residual</b> (the two dashed arcs in the top-right figure are identical).</li>
+            </ul>
+            <h2>Stacking N layers</h2>
+            <p>
+              Repeat this Block for <b>N layers</b> (different weights per layer) and you get the model body.
+              Token embeddings enter at the bottom, the residual stream is refined layer by layer, and after a
+              <b> final RMSNorm</b> at the top an <b>output head</b> produces scores for the next word.
+              DeepSeek-V3/V4 has <b>61 layers</b> of such Blocks.
+            </p>
+            <h2>How a residual becomes logits</h2>
+            <p>
+              Out of the last layer, each token is still a d-dim residual <b>h</b>. How does it turn into "the next word"?
+              Through the <b>final RMSNorm</b>, then the <b>output head W_U</b> (d×V, V = vocab size):
+              <code> logits = h · W_U</code> —— one score per word in the vocabulary.
+              Each word occupies one column of W_U (its "direction"), and <b>the dot product of h with it = that word's logit</b>;
+              the better h aligns with a word, the higher its score. Then softmax turns them into probabilities (sampling in Ch. 10).
+            </p>
+            <div className="note">
+              Real vocabularies are <b>usually 30k ~ 260k</b> (LLaMA2 32k, GPT-2/3 ~50k, GPT-4 ~100k,
+              <b> DeepSeek-V3 ≈ 128k</b>, Gemma 260k); this toy page uses only <b>V={VOCAB.length}</b>.
+              A larger vocabulary splits a sentence into fewer pieces (cheaper), but makes W_U (V×d) larger —— DeepSeek-V3's
+              output head alone is about <b>0.9 billion parameters</b>.
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              <b>Weight tying</b>: set W_U = the <b>transpose of Ch. 2's embedding matrix</b>, reusing one table both ways to
+              save a V×d copy. This was common in <b>early/small models like GPT-2/BERT</b>; but many large models
+              (including <b>DeepSeek-V3</b>, Llama 3) <b>do not tie</b> (<code>tie_word_embeddings=false</code>) —— which is
+              exactly why V3's output head can have ~0.9B parameters of its own.
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              Why "repeat the same structure" is so powerful: every layer can <b>add one more refinement</b> onto the
+              residual stream —— shallow layers handle more local/syntactic things, deep layers more semantic/reasoning
+              ones. Same bricks, and the deeper you stack, the more capable it gets.
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              Road to DeepSeek: from V2 on, the <b>attention sublayer</b> here is replaced by <b>MLA</b> (Ch. 11) and the
+              <b> FFN sublayer</b> by <b>MoE</b> (Ch. 12); V4 further swaps attention for <b>CSA/HCA</b> (Ch. 16) ——
+              <b> the Block's skeleton stays the same, only the internals of the two sublayers change</b>.
+            </div>
+          </>
+        ) : (
+          <>
+            <p>
+              前几章的零件齐了:<b>多头注意力</b>(4、5 章)、<b>FFN/SwiGLU</b>(6 章)、
+              <b>残差 + RMSNorm</b>(7 章)。这一章把它们拼成<b>一个完整的层(Block)</b>,再堆叠。
+            </p>
+            <h2>一个 Block = 两个同构子块</h2>
+            <p>
+              一个 Transformer Block 顺序做<b>两件事</b>,而且<b>结构完全一样</b>:
+            </p>
+            <p style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--accent-2)' }}>
+              x ← x + 多头注意力( RMSNorm(x) )<br />
+              x ← x + FFN( RMSNorm(x) )
+            </p>
+            <ul>
+              <li><b>注意力子块</b>:跨 token 搬运信息(谁该看谁)。</li>
+              <li><b>FFN 子块</b>:逐 token 加工(每个 token 自己想)。</li>
+              <li>两个子块都是同一个套路:<b>RMSNorm → 子层 → 残差加回</b>(右上图两段虚线一模一样)。</li>
+            </ul>
+            <h2>堆叠 N 层</h2>
+            <p>
+              把这个 Block <b>重复 N 层</b>(每层权重不同),就是模型主体。
+              词嵌入从底部进,残差流逐层被精炼,顶部<b>最终 RMSNorm</b> 后接<b>输出头</b>得到下一个词的分数。
+              DeepSeek-V3/V4 有 <b>61 层</b>这样的 Block。
+            </p>
+            <h2>残差怎么变成 logits</h2>
+            <p>
+              最后一层出来,每个 token 还是一个 d 维残差 <b>h</b>。怎么变成「下一个词」?
+              经<b>最终 RMSNorm</b>,再过<b>输出头 W_U</b>(d×V,V=词表大小):
+              <code> logits = h · W_U</code> —— 词表每个词一个分数。
+              每个词在 W_U 里占一列(它的「方向」),<b>h 和它点积 = 该词的 logit</b>;
+              h 和谁越对齐,谁分越高。再 softmax 成概率(采样见 Ch10)。
+            </p>
+            <div className="note">
+              真实词表 <b>V 一般 3 万 ~ 26 万</b>(LLaMA2 3.2 万、GPT-2/3 约 5 万、GPT-4 约 10 万、
+              <b>DeepSeek-V3 ≈ 12.8 万</b>、Gemma 26 万);本页 toy 只用 <b>V={VOCAB.length}</b>。
+              词表越大,一句话拆得越少(更省),但 W_U(V×d)越大——DeepSeek-V3 光输出头就约 <b>9 亿参数</b>。
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              <b>权重绑定</b>(weight tying):让 W_U = Ch02 <b>嵌入矩阵的转置</b>,同一张表正反用,省一份 V×d 参数。
+              这是 <b>GPT-2/BERT 等早期/小模型</b>的常见做法;但很多大模型(含 <b>DeepSeek-V3</b>、Llama 3)<b>不绑定</b>
+              (<code>tie_word_embeddings=false</code>)——这正是 V3 的输出头能<b>单独</b>有约 9 亿参数的原因。
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              为什么"同一结构重复"如此强大:每层都能在残差流上<b>加一笔精炼</b>,
+              浅层多管局部/语法,深层多管语义/推理——同样的积木,堆得越深、能力越强。
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              通往 DeepSeek:V2 起把这里的<b>注意力子块</b>换成 <b>MLA</b>(11 章)、
+              <b>FFN 子块</b>换成 <b>MoE</b>(12 章),V4 再把注意力换成 <b>CSA/HCA</b>(16 章)——
+              <b>Block 的骨架不变,只换两个子块的内部实现</b>。
+            </div>
+          </>
+        )}
         <Refs ids={['1706.03762', '2002.04745', '1608.05859', '2412.19437', '2606.19348']} />
       </>
       <>
-        <h3>一个 Block 的接线:残差流穿过两个子块(聚焦「{tokens[fi]}」)</h3>
+        <h3>{t('一个 Block 的接线:残差流穿过两个子块(聚焦「', 'One Block wiring: residual stream through two sublayers (focus "')}{tokens[fi]}{t('」)', '")')}</h3>
         <FigureBoard renderSvg={renderBlock} baseCell={26} fullCell={40}
           controls={controls} onPageStep={onPageStep} />
 
-        <h3 style={{ marginTop: 14 }}>堆叠成完整模型骨架</h3>
+        <h3 style={{ marginTop: 14 }}>{t('堆叠成完整模型骨架', 'Stacking into the full model skeleton')}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>层数 N</span>
+          <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{t('层数 N', 'layers N')}</span>
           <input type="range" min={1} max={8} step={1} value={Nl}
             onChange={(e) => setNl(Math.round(+e.target.value))} style={{ width: 160 }} />
           <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{Nl}</b>
@@ -260,12 +339,20 @@ export default function Ch08Block({ prev, next }) {
           {renderStack()}
         </div>
 
-        <h3 style={{ marginTop: 16 }}>输出头:残差怎么变成 logits</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          最后一个 Block 的残差 → 最终 RMSNorm → <code>×W_U</code>(d×V)= 每个词一个分数(logits)→
-          softmax = 概率。<b>h 和某个词的方向越对齐,那个词分越高</b>。这里预测:
-          <b style={{ color: 'var(--accent-2)' }}>「{VOCAB[head.am]}」</b>。
-        </p>
+        <h3 style={{ marginTop: 16 }}>{t('输出头:残差怎么变成 logits', 'Output head: how a residual becomes logits')}</h3>
+        {lang === 'en' ? (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+            The last Block's residual → final RMSNorm → <code>×W_U</code> (d×V) = one score per word (logits) →
+            softmax = probabilities. <b>The better h aligns with a word's direction, the higher that word's score</b>.
+            Prediction here: <b style={{ color: 'var(--accent-2)' }}>"{VOCAB[head.am]}"</b>.
+          </p>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+            最后一个 Block 的残差 → 最终 RMSNorm → <code>×W_U</code>(d×V)= 每个词一个分数(logits)→
+            softmax = 概率。<b>h 和某个词的方向越对齐,那个词分越高</b>。这里预测:
+            <b style={{ color: 'var(--accent-2)' }}>「{VOCAB[head.am]}」</b>。
+          </p>
+        )}
         <div style={{ overflowX: 'auto', paddingBottom: 8, background: 'var(--bg)',
           border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
           {renderHead(30)}
