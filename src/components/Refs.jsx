@@ -6,7 +6,7 @@ import { useT } from '../i18n/lang.jsx'
 export default function Refs({ ids = [], extra = [] }) {
   const t = useT()
   const items = [
-    ...ids.map((id) => ({ label: PAPERS[id]?.t || id, url: arxivUrl(id) })),
+    ...ids.map((id) => ({ label: PAPERS[id] ? t(PAPERS[id].t, PAPERS[id].tEn) : id, url: arxivUrl(id) })),
     ...extra,
   ]
   if (!items.length) return null
