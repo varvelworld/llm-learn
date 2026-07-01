@@ -8,6 +8,7 @@ import { seededMatrix } from '../lib/synth.js'
 import { matmul, transpose } from '../lib/tensor.js'
 import { attention } from '../lib/attention.js'
 import { softmax } from '../lib/softmax.js'
+import { useLang, useT } from '../i18n/lang.jsx'
 
 const DM = 4 // 注意力维度(toy)
 const WORDS = 'the cat sat on a warm mat and the dog ran fast over green hills today'.split(' ')
@@ -16,7 +17,12 @@ const CTX = 128 * 1024
 const TOPK_REAL = 2048
 const fmt = (x) => x.toLocaleString('en-US')
 
+// 估算文本像素宽(CJK≈11、ASCII≈6.4),给英文更长的 SVG 文案留够宽度、防裁切
+const estTextW = (s) => [...String(s)].reduce((w, ch) => w + (ch.charCodeAt(0) > 255 ? 11 : 6.4), 0)
+
 export default function Ch15DSA({ prev, next }) {
+  const t = useT()
+  const { lang } = useLang()
   const [n, setN] = useState(10)
   const [qpos, setQpos] = useState(9)
   const [k, setK] = useState(3)
@@ -78,7 +84,8 @@ export default function Ch15DSA({ prev, next }) {
     const yTok = 26
     const y1 = yTok + 8 // 索引器分数行
     const y2 = y1 + C + 30 // 真实注意力行
-    const W = gx + m * C + 20
+    const topText = t(`q「${tokens[qp]}」对每个键:`, `q「${tokens[qp]}」to each key:`)
+    const W = Math.max(gx + m * C + 20, 4 + estTextW(topText) + 8)
     const H = y2 + C + 24
     const cells = []
     for (let j = 0; j < m; j++) {
@@ -115,10 +122,10 @@ export default function Ch15DSA({ prev, next }) {
     }
     return (
       <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>
-        <text x={4} y={yTok} fontFamily={T.font} fontSize={10} fill={T.c.accent}>q「{tokens[qp]}」对每个键:</text>
-        <text x={gx - 8} y={y1 + C * 0.62} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>闪电索引器(廉价)</text>
-        <text x={gx - 8} y={y2 + C * 0.62} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.dim}>真实注意力(参照)</text>
-        <text x={gx - 8} y={y1 - 12} textAnchor="end" fontFamily={T.font} fontSize={9} fill={T.c.dim}>↓选 top-{kk}</text>
+        <text x={4} y={yTok} fontFamily={T.font} fontSize={10} fill={T.c.accent}>{topText}</text>
+        <text x={gx - 8} y={y1 + C * 0.62} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.accent2}>{t('闪电索引器(廉价)', 'Lightning indexer')}</text>
+        <text x={gx - 8} y={y2 + C * 0.62} textAnchor="end" fontFamily={T.font} fontSize={10} fill={T.c.dim}>{t('真实注意力(参照)', 'True attention')}</text>
+        <text x={gx - 8} y={y1 - 12} textAnchor="end" fontFamily={T.font} fontSize={9} fill={T.c.dim}>{t(`↓选 top-${kk}`, `↓pick top-${kk}`)}</text>
         {cells}
       </svg>
     )
@@ -133,7 +140,7 @@ export default function Ch15DSA({ prev, next }) {
     const maxRows = Math.max(m, DM)
     const topPad = 22
     const cy = topPad + (maxRows * C) / 2
-
+    const titleExt = [] // 每个居中标题的右缘,英文更长时据此撑宽 W
     const blk = (x, data, { vmax, title, rowLabels, rowHi }) => {
       const rows = data.length
       const cols = data[0].length
@@ -158,6 +165,7 @@ export default function Ch15DSA({ prev, next }) {
       if (rowLabels) rowLabels.forEach((rl, i) =>
         els.push(<text key={`${title}-rl${i}`} x={x - 4} y={y + i * C + C * 0.66} textAnchor="end"
           fontFamily={T.font} fontSize={9} fill={rowHi && rowHi.has(i) ? T.c.accent2 : T.c.dim}>{rl}</text>))
+      titleExt.push(x + (cols * C) / 2 + estTextW(title) / 2)
       els.push(<text key={`${title}-t`} x={x + (cols * C) / 2} y={y + h + 14} textAnchor="middle"
         fontFamily={T.font} fontSize={11} fill={T.c.accent}>{title}</text>)
       return { els, w: cols * C }
@@ -169,10 +177,10 @@ export default function Ch15DSA({ prev, next }) {
     const parts = []
     let x = 52
     const add = (b, opSym, opW) => { parts.push(...b.els); x += b.w; if (opSym) { parts.push(op(x, opSym, opW)); x += opW } }
-    add(blk(x, Xm, { vmax: ioMax, title: `X 前 ${m} 个 token(${DM}维)`, rowLabels: tokens.slice(0, m), rowHi: selSet }), '·', 20)
-    add(blk(x, WI, { vmax: ioMax, title: `W_I 索引投影(${DM}×${didx})` }), '=', 24)
-    add(blk(x, kI, { vmax: ioMax, title: `kI 索引键(压到 ${didx} 维)`, rowLabels: tokens.slice(0, m), rowHi: selSet }), null, 0)
-    const W = x + 16
+    add(blk(x, Xm, { vmax: ioMax, title: t(`X 前 ${m} 个 token(${DM}维)`, `X: first ${m} tokens (${DM}-dim)`), rowLabels: tokens.slice(0, m), rowHi: selSet }), '·', 20)
+    add(blk(x, WI, { vmax: ioMax, title: t(`W_I 索引投影(${DM}×${didx})`, `W_I index proj (${DM}×${didx})`) }), '=', 24)
+    add(blk(x, kI, { vmax: ioMax, title: t(`kI 索引键(压到 ${didx} 维)`, `kI index keys (to ${didx}-dim)`), rowLabels: tokens.slice(0, m), rowHi: selSet }), null, 0)
+    const W = Math.max(x + 16, ...titleExt.map((e) => e + 8))
     const H = topPad + maxRows * C + 26
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{parts}</svg>
   }
@@ -188,6 +196,7 @@ export default function Ch15DSA({ prev, next }) {
     const ioMax = Math.max(1e-6, ...[...qI.flat(), ...kIt.flat()].map(Math.abs))
     const topPad = 22
     const cy = topPad + (didx * C) / 2
+    const titleExt = [] // 每个居中标题的右缘,英文更长时据此撑宽 W
 
     const blk = (x, data, { vmax, dec = 1, title, colLabels, picked }) => {
       const rows = data.length
@@ -213,6 +222,7 @@ export default function Ch15DSA({ prev, next }) {
       if (colLabels) colLabels.forEach((c, j) =>
         els.push(<text key={`${title}-cl${j}`} x={x + j * C + C / 2} y={y - 4} textAnchor="middle"
           fontFamily={T.font} fontSize={9} fill={picked && picked.has(j) ? T.c.accent2 : T.c.dim}>{c}</text>))
+      titleExt.push(x + (cols * C) / 2 + estTextW(title) / 2)
       els.push(<text key={`${title}-t`} x={x + (cols * C) / 2} y={y + h + 14} textAnchor="middle"
         fontFamily={T.font} fontSize={11} fill={T.c.accent}>{title}</text>)
       return { els, w: cols * C }
@@ -224,11 +234,11 @@ export default function Ch15DSA({ prev, next }) {
     const parts = []
     let x = 56
     const add = (b, opSym, opW) => { parts.push(...b.els); x += b.w; parts.push(op(x, opSym, opW)); x += opW }
-    add(blk(x, qI, { vmax: ioMax, title: `qI「${tokens[qp]}」(${didx}维)` }), '·', 20)
-    add(blk(x, kIt, { vmax: ioMax, title: `kIᵀ 索引键(${didx}维 ≪ ${DM})`, colLabels: tokens.slice(0, m) }), '=', 24)
-    const last = blk(x, sc, { vmax: idxMax, title: '索引分数(=上图那行)', colLabels: tokens.slice(0, m), picked: selSet })
+    add(blk(x, qI, { vmax: ioMax, title: t(`qI「${tokens[qp]}」(${didx}维)`, `qI「${tokens[qp]}」(${didx}-dim)`) }), '·', 20)
+    add(blk(x, kIt, { vmax: ioMax, title: t(`kIᵀ 索引键(${didx}维 ≪ ${DM})`, `kIᵀ index keys (${didx}-dim ≪ ${DM})`), colLabels: tokens.slice(0, m) }), '=', 24)
+    const last = blk(x, sc, { vmax: idxMax, title: t('索引分数(=上图那行)', 'Index scores (= row above)'), colLabels: tokens.slice(0, m), picked: selSet })
     parts.push(...last.els); x += last.w
-    const W = x + 16
+    const W = Math.max(x + 16, ...titleExt.map((e) => e + 8))
     const H = topPad + didx * C + 26
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{parts}</svg>
   }
@@ -250,6 +260,7 @@ export default function Ch15DSA({ prev, next }) {
     const topPad = 22
     const cy = topPad + (maxRows * C) / 2
     const lbl = selIdx.map((j) => tokens[j])
+    const titleExt = [] // 每个居中标题的右缘,英文更长时据此撑宽 W
 
     const blk = (x, data, { vmax, dec = 1, title, colLabels, rowLabels }) => {
       const rows = data.length
@@ -276,6 +287,7 @@ export default function Ch15DSA({ prev, next }) {
       if (rowLabels) rowLabels.forEach((rl, i) =>
         els.push(<text key={`${title}-rl${i}`} x={x - 4} y={y + i * C + C * 0.66} textAnchor="end"
           fontFamily={T.font} fontSize={9} fill={T.c.accent2}>{rl}</text>))
+      titleExt.push(x + (cols * C) / 2 + estTextW(title) / 2)
       els.push(<text key={`${title}-t`} x={x + (cols * C) / 2} y={y + h + 14} textAnchor="middle"
         fontFamily={T.font} fontSize={11} fill={T.c.accent}>{title}</text>)
       return { els, w: cols * C }
@@ -291,12 +303,12 @@ export default function Ch15DSA({ prev, next }) {
       if (opSym) { parts.push(op(x, opSym, opW)); x += opW } else { x += gap }
     }
     add(blk(x, qv, { vmax: ioMax, title: `q「${tokens[qp]}」` }), 0, '·', 20)
-    add(blk(x, Kt, { vmax: ioMax, title: `Kᵀ(只取选中 ${ms} 键)`, colLabels: lbl }), 0, '=', 24)
-    add(blk(x, sc, { vmax: scMax, title: '分数(只算选中)' }), 0, 'softmax→', 66)
-    add(blk(x, wt, { vmax: 1, dec: 2, title: '权重(子集内归一)' }), 0, '·', 20)
-    add(blk(x, Vr, { vmax: ioMax, title: `V(只取选中 ${ms} 值)`, rowLabels: lbl }), 0, '=', 24)
-    add(blk(x, ov, { vmax: ioMax, title: '输出→预测下个词' }), 16)
-    const W = x + 16
+    add(blk(x, Kt, { vmax: ioMax, title: t(`Kᵀ(只取选中 ${ms} 键)`, `Kᵀ (only ${ms} selected keys)`), colLabels: lbl }), 0, '=', 24)
+    add(blk(x, sc, { vmax: scMax, title: t('分数(只算选中)', 'Scores (selected only)') }), 0, 'softmax→', 66)
+    add(blk(x, wt, { vmax: 1, dec: 2, title: t('权重(子集内归一)', 'Weights (renorm in subset)') }), 0, '·', 20)
+    add(blk(x, Vr, { vmax: ioMax, title: t(`V(只取选中 ${ms} 值)`, `V (only ${ms} selected values)`), rowLabels: lbl }), 0, '=', 24)
+    add(blk(x, ov, { vmax: ioMax, title: t('输出→预测下个词', 'Output → next-token') }), 16)
+    const W = Math.max(x + 16, ...titleExt.map((e) => e + 8))
     const H = topPad + maxRows * C + 26
     return <svg width={W} height={H} style={{ display: 'block', minWidth: W }}>{parts}</svg>
   }
@@ -304,25 +316,25 @@ export default function Ch15DSA({ prev, next }) {
   const controls = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--text-dim)', width: 76 }}>序列长度</span>
+        <span style={{ color: 'var(--text-dim)', width: 76 }}>{t('序列长度', 'Seq length')}</span>
         <input type="range" min={4} max={16} step={1} value={n}
           onChange={(e) => setN(Math.round(+e.target.value))} style={{ width: 120 }} />
         <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{n}</b>
       </label>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--text-dim)', width: 76 }}>query 位置</span>
+        <span style={{ color: 'var(--text-dim)', width: 76 }}>{t('query 位置', 'Query pos')}</span>
         <input type="range" min={0} max={n - 1} step={1} value={qp}
           onChange={(e) => setQpos(Math.round(+e.target.value))} style={{ width: 120 }} />
         <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{tokens[qp]}</b>
       </label>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--text-dim)', width: 76 }}>选 top-k</span>
+        <span style={{ color: 'var(--text-dim)', width: 76 }}>{t('选 top-k', 'Pick top-k')}</span>
         <input type="range" min={1} max={Math.max(1, m)} step={1} value={k}
           onChange={(e) => setK(Math.round(+e.target.value))} style={{ width: 120 }} />
         <b style={{ fontFamily: 'var(--mono)', color: 'var(--accent-2)' }}>{kk}</b>
       </label>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--text-dim)', width: 76 }}>索引器维度</span>
+        <span style={{ color: 'var(--text-dim)', width: 76 }}>{t('索引器维度', 'Indexer dim')}</span>
         <input type="range" min={1} max={4} step={1} value={didx}
           onChange={(e) => setDidx(Math.round(+e.target.value))} style={{ width: 120 }} />
         <b style={{ fontFamily: 'var(--mono)', color: 'var(--warn)' }}>{didx}/{DM}</b>
@@ -332,73 +344,139 @@ export default function Ch15DSA({ prev, next }) {
 
   return (
     <ChapterLayout
-      kicker="第 15 章 · DSA + 闪电索引器 · DeepSeek-V3.2(V4 在此基础上演进为 CSA)"
-      title="DSA + 闪电索引器"
+      kicker={t('第 15 章 · DSA + 闪电索引器 · DeepSeek-V3.2(V4 在此基础上演进为 CSA)', 'Ch. 15 · DSA + Lightning Indexer · DeepSeek-V3.2 (V4 evolves this into CSA)')}
+      title={t('DSA + 闪电索引器', 'DSA + Lightning Indexer')}
       prev={prev}
       next={next}
+      translated
     >
       <>
-        <p>
-          第 14 章留了个死结:稀疏注意力想「只算 top-k 个 key」,可<b>要知道哪几个 key 重要,
-          就得先把所有权重算出来</b>——而那正是我们想省掉的。这是<b>循环</b>。
-        </p>
-        <h2>破解:先用廉价的"索引器"猜,再精算</h2>
-        <p>
-          DSA(DeepSeek 稀疏注意力)用<b>两段式</b>:
-        </p>
-        <ul>
-          <li>① <b>闪电索引器</b>:给每个 key 打一个<b>近似相关分</b>,但只用<b>极低的维度 d_idx</b>
-            (≪ 注意力维度)。这里 toy 把它建成「<b>只在前 d_idx 个维度上做点积</b>」——完整打分的低维近似,
-            便宜在维度小、还能用低精度跑。<b>真实公式更复杂</b>:是<b>多头 ReLU 门控的加权点积</b>
-            <code>I = Σ_h w_h·ReLU(q_h·k_h)</code>,且是被<b>专门蒸馏训练</b>去模仿完整注意力分布的小模块
-            (复用 MLA 表示)。</li>
-          <li>② <b>选 top-k</b>:只挑分最高的 k 个 key。</li>
-          <li>③ <b>精算注意力</b>:只对这 k 个 key 做<b>完整</b>的 q·Kᵀ→softmax→·V(右下链路)。
-            注意 softmax 在<b>选中子集内重新归一化</b>。</li>
-        </ul>
-        <p>
-          关键问题:廉价索引器<b>猜得准吗?</b>右上图把它和「真实注意力(参照)」并排放:
-          <b style={{ color: 'var(--accent-2)' }}>✓</b> = 索引器选中的也确实在真实 top-k 里;
-          <b style={{ color: 'var(--warn)' }}>?</b> = 选错了。当前 q「<b style={{ color: 'var(--accent)' }}>{tokens[qp]}</b>」:
-          索引器选中的 {kk} 个,命中真实 top-{kk} 中 <b>{hit}</b> 个,
-          覆盖了真实注意力 <b style={{ color: 'var(--accent-2)' }}>{Math.round(recall * 100)}%</b> 的质量。
-        </p>
-        <p>
-          拖「<b>索引器维度</b>」滑块:维度越小越便宜,但猜得越糙(命中率/覆盖率会掉)。
-          真实 DSA 里索引器又准又便宜,是因为它是被<b>专门训练</b>去模仿"完整注意力会看哪里"的。
-        </p>
-        <div className="note">
-          省的是什么:索引器把<b>打分</b>从 O(n·d) 降到 O(n·d_idx),精算只在 k 个键上 O(k·d)。
-          长上下文(n 很大)下,这是从<b>平方级</b>逼近<b>线性级</b>的关键。
-          注意——这省的是<b>算力 / 读取带宽</b>;KV 缓存条目本身还得全留着(下一步可能选别的键)。
-        </div>
-        <div className="note" style={{ marginTop: 8 }}>
-          版本归属:<b>DSA(token 级)+ 闪电索引器是 DeepSeek-V3.2</b> 的方案,对<b>单个 token</b> 选 top-k。
-          <b>V4 不直接用它</b>,而是把同一思想搬到<b>压缩块</b>上,并补一条滑动窗口 —— 这就是下一章的
-          <b> CSA</b>(闪电索引器沿用,打分对象从 token 变成压缩块)。
-        </div>
+        {lang === 'en' ? (
+          <>
+            <p>
+              Chapter 14 left us with a deadlock: sparse attention wants to <b>compute only the top-k keys</b>, but
+              <b> to know which keys matter, you first have to compute all the weights</b> — which is exactly what we wanted to skip.
+              That's the <b>circularity</b>.
+            </p>
+            <h2>Breaking it: guess cheaply with an "indexer" first, then compute precisely</h2>
+            <p>
+              DSA (DeepSeek Sparse Attention) uses <b>two stages</b>:
+            </p>
+            <ul>
+              <li>① <b>Lightning indexer</b>: give each key an <b>approximate relevance score</b>, using only a <b>tiny dimension d_idx</b>
+                (≪ the attention dimension). Here the toy builds it as "<b>a dot product over just the first d_idx dimensions</b>" — a
+                low-dimensional approximation of the full score, cheap because the dimension is small and it can run in low precision.
+                <b> The real formula is more involved</b>: a <b>multi-head, ReLU-gated weighted dot product</b>
+                <code>I = Σ_h w_h·ReLU(q_h·k_h)</code>, and it is a small module <b>specially distilled</b> to mimic the full attention
+                distribution (reusing the MLA representation).</li>
+              <li>② <b>Pick top-k</b>: keep only the k highest-scoring keys.</li>
+              <li>③ <b>Precise attention</b>: run the <b>full</b> q·Kᵀ→softmax→·V (the bottom-right pipeline) on just those k keys.
+                Note the softmax is <b>renormalized within the selected subset</b>.</li>
+            </ul>
+            <p>
+              The key question: does the cheap indexer <b>guess well?</b> The top-right figure places it next to "true attention (reference)":
+              <b style={{ color: 'var(--accent-2)' }}> ✓</b> = a key the indexer picked really is in the true top-k;
+              <b style={{ color: 'var(--warn)' }}> ?</b> = a wrong pick. For the current q「<b style={{ color: 'var(--accent)' }}>{tokens[qp]}</b>」:
+              of the {kk} keys the indexer picked, <b>{hit}</b> land in the true top-{kk},
+              covering <b style={{ color: 'var(--accent-2)' }}>{Math.round(recall * 100)}%</b> of the true attention mass.
+            </p>
+            <p>
+              Drag the "<b>indexer dim</b>" slider: fewer dimensions are cheaper but guess more coarsely (hit rate / coverage drop).
+              In real DSA the indexer is both accurate and cheap because it is <b>specially trained</b> to mimic "where full attention would look".
+            </p>
+            <div className="note">
+              What gets saved: the indexer drops <b>scoring</b> from O(n·d) to O(n·d_idx), and the precise step touches only k keys at O(k·d).
+              For long context (large n), this is the key move from <b>quadratic</b> toward <b>linear</b>.
+              Note — this saves <b>compute / read bandwidth</b>; the KV cache entries themselves must all still be kept (the next step may pick different keys).
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              Version attribution: <b>DSA (token-level) + the lightning indexer is the DeepSeek-V3.2</b> scheme, picking top-k for a <b>single token</b>.
+              <b> V4 does not use it directly</b>; instead it moves the same idea onto <b>compressed blocks</b> and adds a sliding window — that's the next chapter's
+              <b> CSA</b> (the lightning indexer carries over, but the scoring target changes from tokens to compressed blocks).
+            </div>
+          </>
+        ) : (
+          <>
+            <p>
+              第 14 章留了个死结:稀疏注意力想「只算 top-k 个 key」,可<b>要知道哪几个 key 重要,
+              就得先把所有权重算出来</b>——而那正是我们想省掉的。这是<b>循环</b>。
+            </p>
+            <h2>破解:先用廉价的"索引器"猜,再精算</h2>
+            <p>
+              DSA(DeepSeek 稀疏注意力)用<b>两段式</b>:
+            </p>
+            <ul>
+              <li>① <b>闪电索引器</b>:给每个 key 打一个<b>近似相关分</b>,但只用<b>极低的维度 d_idx</b>
+                (≪ 注意力维度)。这里 toy 把它建成「<b>只在前 d_idx 个维度上做点积</b>」——完整打分的低维近似,
+                便宜在维度小、还能用低精度跑。<b>真实公式更复杂</b>:是<b>多头 ReLU 门控的加权点积</b>
+                <code>I = Σ_h w_h·ReLU(q_h·k_h)</code>,且是被<b>专门蒸馏训练</b>去模仿完整注意力分布的小模块
+                (复用 MLA 表示)。</li>
+              <li>② <b>选 top-k</b>:只挑分最高的 k 个 key。</li>
+              <li>③ <b>精算注意力</b>:只对这 k 个 key 做<b>完整</b>的 q·Kᵀ→softmax→·V(右下链路)。
+                注意 softmax 在<b>选中子集内重新归一化</b>。</li>
+            </ul>
+            <p>
+              关键问题:廉价索引器<b>猜得准吗?</b>右上图把它和「真实注意力(参照)」并排放:
+              <b style={{ color: 'var(--accent-2)' }}>✓</b> = 索引器选中的也确实在真实 top-k 里;
+              <b style={{ color: 'var(--warn)' }}>?</b> = 选错了。当前 q「<b style={{ color: 'var(--accent)' }}>{tokens[qp]}</b>」:
+              索引器选中的 {kk} 个,命中真实 top-{kk} 中 <b>{hit}</b> 个,
+              覆盖了真实注意力 <b style={{ color: 'var(--accent-2)' }}>{Math.round(recall * 100)}%</b> 的质量。
+            </p>
+            <p>
+              拖「<b>索引器维度</b>」滑块:维度越小越便宜,但猜得越糙(命中率/覆盖率会掉)。
+              真实 DSA 里索引器又准又便宜,是因为它是被<b>专门训练</b>去模仿"完整注意力会看哪里"的。
+            </p>
+            <div className="note">
+              省的是什么:索引器把<b>打分</b>从 O(n·d) 降到 O(n·d_idx),精算只在 k 个键上 O(k·d)。
+              长上下文(n 很大)下,这是从<b>平方级</b>逼近<b>线性级</b>的关键。
+              注意——这省的是<b>算力 / 读取带宽</b>;KV 缓存条目本身还得全留着(下一步可能选别的键)。
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              版本归属:<b>DSA(token 级)+ 闪电索引器是 DeepSeek-V3.2</b> 的方案,对<b>单个 token</b> 选 top-k。
+              <b>V4 不直接用它</b>,而是把同一思想搬到<b>压缩块</b>上,并补一条滑动窗口 —— 这就是下一章的
+              <b> CSA</b>(闪电索引器沿用,打分对象从 token 变成压缩块)。
+            </div>
+          </>
+        )}
         <Refs ids={['2512.02556', '2606.19348', '1706.03762']} />
       </>
       <>
         <FigureBoard renderSvg={renderIndexer} baseCell={34} fullCell={50}
           controls={controls} onPageStep={onPageStep} />
 
-        <h3 style={{ marginTop: 14 }}>那行「索引器分数」是怎么算出来的?</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          <b>① 投影出索引键</b>:每个 token(<code>X</code> 的一行,{DM} 维)经一个<b>小投影矩阵 <code>W_I</code></b>
-          (<code>{DM}×{didx}</code>)压到 <b>{didx} 维</b>,得到<b>索引键 kI</b>。这就是「token 经小投影压到 {didx} 维」
-          ——投影矩阵 <code>W_I</code> 把维度从 {DM} 砍到 {didx},正是索引器便宜的来源。
-        </p>
+        <h3 style={{ marginTop: 14 }}>{t('那行「索引器分数」是怎么算出来的?', 'How is that "index score" row computed?')}</h3>
+        {lang === 'en' ? (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+            <b>① Project out the index keys</b>: each token (a row of <code>X</code>, {DM}-dim) passes through a <b>small projection matrix <code>W_I</code></b>
+            (<code>{DM}×{didx}</code>), compressed to <b>{didx} dims</b>, giving the <b>index key kI</b>. This is "a token compressed to {didx} dims by a small projection"
+            — <code>W_I</code> cuts the dimension from {DM} to {didx}, which is exactly why the indexer is cheap.
+          </p>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+            <b>① 投影出索引键</b>:每个 token(<code>X</code> 的一行,{DM} 维)经一个<b>小投影矩阵 <code>W_I</code></b>
+            (<code>{DM}×{didx}</code>)压到 <b>{didx} 维</b>,得到<b>索引键 kI</b>。这就是「token 经小投影压到 {didx} 维」
+            ——投影矩阵 <code>W_I</code> 把维度从 {DM} 砍到 {didx},正是索引器便宜的来源。
+          </p>
+        )}
         <div style={{ overflowX: 'auto', paddingBottom: 8, background: 'var(--bg)',
           border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
           {renderIndexerProj(28)}
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '10px 0 10px' }}>
-          <b>② 打分</b>:query 同理经投影得到 <code>qI</code>({didx} 维),再 <code>qI · kIᵀ</code>
-          (kIᵀ 就是上面 kI 的转置)= 上图那行索引分数。它比注意力的 <code>q·Kᵀ</code> 窄得多
-          ({didx} 维 vs {DM} 维),所以便宜。(toy 里 <code>W_I</code> 取注意力 <code>WK</code> 的前 {didx} 列,
-          使 kI 和真实 K 对得上;真实 DSA 用独立训练的小投影,并单独缓存索引键——但很小。)
-        </p>
+        {lang === 'en' ? (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '10px 0 10px' }}>
+            <b>② Score</b>: the query is projected the same way into <code>qI</code> ({didx}-dim), then <code>qI · kIᵀ</code>
+            (kIᵀ is the transpose of the kI above) = the index-score row above. It is much narrower than attention's <code>q·Kᵀ</code>
+            ({didx}-dim vs {DM}-dim), hence cheap. (In the toy, <code>W_I</code> takes the first {didx} columns of attention's <code>WK</code>
+            so kI aligns with the true K; real DSA uses an independently trained small projection and caches the index keys separately — but they are tiny.)
+          </p>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '10px 0 10px' }}>
+            <b>② 打分</b>:query 同理经投影得到 <code>qI</code>({didx} 维),再 <code>qI · kIᵀ</code>
+            (kIᵀ 就是上面 kI 的转置)= 上图那行索引分数。它比注意力的 <code>q·Kᵀ</code> 窄得多
+            ({didx} 维 vs {DM} 维),所以便宜。(toy 里 <code>W_I</code> 取注意力 <code>WK</code> 的前 {didx} 列,
+            使 kI 和真实 K 对得上;真实 DSA 用独立训练的小投影,并单独缓存索引键——但很小。)
+          </p>
+        )}
         <div style={{ overflowX: 'auto', paddingBottom: 8, background: 'var(--bg)',
           border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
           {renderIndexerMath(30)}
@@ -406,20 +484,27 @@ export default function Ch15DSA({ prev, next }) {
 
         <div className="cost-panel" style={{ marginTop: 14 }}>
           <div className="cost-row">
-            <span>索引器命中真实 top-{kk}</span>
-            <b style={{ color: 'var(--accent-2)' }}>{hit}/{kk} · 覆盖 {Math.round(recall * 100)}% 注意力</b>
+            <span>{t(`索引器命中真实 top-${kk}`, `Indexer hits of true top-${kk}`)}</span>
+            <b style={{ color: 'var(--accent-2)' }}>{hit}/{kk} · {t(`覆盖 ${Math.round(recall * 100)}% 注意力`, `covers ${Math.round(recall * 100)}% attention`)}</b>
           </div>
           <div className="cost-row">
-            <span>打分乘法:满 vs DSA(索引 + 精算)</span>
+            <span>{t('打分乘法:满 vs DSA(索引 + 精算)', 'Scoring multiplies: full vs DSA (index + precise)')}</span>
             <b>{fullScore} → {dsaScore}</b>
           </div>
         </div>
 
-        <h3 style={{ marginTop: 16 }}>③ 只对选中的 {selIdx.length} 个键做真正注意力</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
-          这就是第 14 章那条链路,但 Kᵀ / V <b>只保留索引器选中的列 / 行</b>——其余从不进入计算。
-          softmax 在这个小子集内重新归一化。
-        </p>
+        <h3 style={{ marginTop: 16 }}>{t(`③ 只对选中的 ${selIdx.length} 个键做真正注意力`, `③ Run true attention on only the ${selIdx.length} selected keys`)}</h3>
+        {lang === 'en' ? (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+            This is the same pipeline as Chapter 14, but Kᵀ / V <b>keep only the columns / rows the indexer selected</b> — the rest never enter the computation.
+            The softmax is renormalized within this small subset.
+          </p>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '4px 0 10px' }}>
+            这就是第 14 章那条链路,但 Kᵀ / V <b>只保留索引器选中的列 / 行</b>——其余从不进入计算。
+            softmax 在这个小子集内重新归一化。
+          </p>
+        )}
         <div style={{ overflowX: 'auto', paddingBottom: 8, background: 'var(--bg)',
           border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
           {renderTrace(30)}
@@ -427,12 +512,12 @@ export default function Ch15DSA({ prev, next }) {
 
         <div className="cost-panel" style={{ marginTop: 14 }}>
           <div className="cost-row" style={{ fontSize: 12 }}>
-            <span>真实参照:128K 上下文,索引器选 top-{fmt(TOPK_REAL)}</span>
-            <b style={{ color: 'var(--warn)' }}>精算只碰 {fmt(TOPK_REAL)} / {fmt(CTX)} 个键</b>
+            <span>{t(`真实参照:128K 上下文,索引器选 top-${fmt(TOPK_REAL)}`, `Real reference: 128K context, indexer picks top-${fmt(TOPK_REAL)}`)}</span>
+            <b style={{ color: 'var(--warn)' }}>{t(`精算只碰 ${fmt(TOPK_REAL)} / ${fmt(CTX)} 个键`, `precise step touches only ${fmt(TOPK_REAL)} / ${fmt(CTX)} keys`)}</b>
           </div>
           <div className="cost-row" style={{ fontSize: 12 }}>
-            <span>复杂度</span>
-            <b>打分 O(n·d_idx) + 精算 O(k·d) ⇒ 近似线性</b>
+            <span>{t('复杂度', 'Complexity')}</span>
+            <b>{t('打分 O(n·d_idx) + 精算 O(k·d) ⇒ 近似线性', 'scoring O(n·d_idx) + precise O(k·d) ⇒ near-linear')}</b>
           </div>
         </div>
       </>
