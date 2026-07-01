@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
+import { useT } from '../../i18n/lang.jsx'
 
 // 可复用图板:内联控制条 + 可滚动小图 + 「全屏画布」;全屏为 pan/zoom 画布 + 左侧控制面板。
 // 章节只需提供 renderSvg(cell)、controls(本章控件)、onPageStep(PageUp/Down 调序列长度)。
 export default function FigureBoard({ renderSvg, baseCell = 24, fullCell = 38, controls, onPageStep }) {
+  const t = useT()
   const [full, setFull] = useState(false)
   const [view, setView] = useState({ s: 1, x: 290, y: 70 })
   const fullRef = useRef(null)
@@ -64,7 +66,7 @@ export default function FigureBoard({ renderSvg, baseCell = 24, fullCell = 38, c
         padding: '10px 14px', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 10 }}>
         {controls}
         <span style={{ flex: 1 }} />
-        <button className="btn" onClick={() => setFull(true)}>⛶ 全屏画布</button>
+        <button className="btn" onClick={() => setFull(true)}>⛶ {t('全屏画布', 'Fullscreen')}</button>
       </div>
 
       {!full && (
@@ -83,11 +85,11 @@ export default function FigureBoard({ renderSvg, baseCell = 24, fullCell = 38, c
             style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', padding: '10px 16px', background: 'rgba(8,10,14,0.85)', borderBottom: '1px solid var(--border)' }}>
             <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>
-              全屏画布 &nbsp;|&nbsp; <b style={{ color: 'var(--accent)' }}>拖拽</b>平移 ·
-              <b style={{ color: 'var(--accent)' }}> 捏合/Ctrl+滚轮</b> 缩放 {Math.round(view.s * 100)}% ·
-              <b style={{ color: 'var(--accent)' }}> 滚轮</b>平移 &nbsp;|&nbsp; PageUp/Down 调长度 · Esc 关闭
+              {t('全屏画布', 'Fullscreen')} &nbsp;|&nbsp; <b style={{ color: 'var(--accent)' }}>{t('拖拽', 'drag')}</b>{t('平移', ' to pan')} ·
+              <b style={{ color: 'var(--accent)' }}> {t('捏合/Ctrl+滚轮', 'pinch / Ctrl+wheel')}</b> {t('缩放', 'zoom')} {Math.round(view.s * 100)}% ·
+              <b style={{ color: 'var(--accent)' }}> {t('滚轮', 'wheel')}</b>{t('平移', ' to pan')} &nbsp;|&nbsp; {t('PageUp/Down 调长度 · Esc 关闭', 'PageUp/Down length · Esc close')}
             </span>
-            <button className="btn" onMouseDown={(e) => e.stopPropagation()} onClick={() => setFull(false)}>✕ 关闭</button>
+            <button className="btn" onMouseDown={(e) => e.stopPropagation()} onClick={() => setFull(false)}>✕ {t('关闭', 'Close')}</button>
           </div>
           <div onMouseDown={(e) => e.stopPropagation()}
             style={{ position: 'absolute', top: 54, left: 16, width: 250, display: 'flex', flexDirection: 'column', gap: 10,
